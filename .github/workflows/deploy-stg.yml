@@ -97,6 +97,8 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_STG }} \
             --zip-file fileb://function.zip
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_STG }}
           aws lambda update-function-configuration \
             --function-name ${{ secrets.LAMBDA_FUNCTION_STG }} \
             --environment "Variables={DB_HOST=${{ secrets.DB_HOST_STG }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD_STG }},DB_NAME=${{ secrets.DB_NAME_STG }}}"
