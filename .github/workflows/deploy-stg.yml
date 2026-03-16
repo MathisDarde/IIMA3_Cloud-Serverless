@@ -65,3 +65,35 @@ jobs:
 
       - name: Invalidate CloudFront
         run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CF_DISTRIBUTION_ADMIN_STG }} --paths "/*"
+
+  deploy-backend:
+    name: Deploy backend to STG
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install & Build
+        working-directory: backend
+        run: |
+          npm install
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Package & Deploy to Lambda
+        working-directory: backend
+        run: |
+          zip -r function.zip dist/ node_modules/
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_STG }} \
+            --zip-file fileb://function.zip
