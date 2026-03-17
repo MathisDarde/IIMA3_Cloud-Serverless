@@ -12,10 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   api:
-    image: node:20
-    working_dir: /app
-    volumes:
-      - ./code/api/lambda_hono:/app
+    build: ./code/api/lambda_hono
     ports:
       - "3000:3000"
     environment:
@@ -24,7 +21,6 @@ services:
       DB_USER: postgres
       DB_PASSWORD: password
       DB_NAME: iim_stg
-    command: sh -c "npm install && npm run dev"
     depends_on:
       - db
 

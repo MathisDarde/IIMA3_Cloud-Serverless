@@ -101,4 +101,4 @@ jobs:
             --function-name ${{ secrets.LAMBDA_FUNCTION_PRD }}
           aws lambda update-function-configuration \
             --function-name ${{ secrets.LAMBDA_FUNCTION_PRD }} \
-            --environment "Variables={DB_HOST=${{ secrets.DB_HOST_PRD }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD_PRD }},DB_NAME=${{ secrets.DB_NAME_PRD }}}"
+            --environment "Variables={DB_HOST=${{ secrets.DB_HOST_PRD }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD_PRD }},DB_NAME=${{ secrets.DB_NAME_PRD }},COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID_PRD }},COGNITO_CLIENT_ID=${{ secrets.COGNITO_CLIENT_ID_PRD }}}"
