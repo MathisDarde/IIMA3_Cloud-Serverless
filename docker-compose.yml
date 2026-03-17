@@ -1,31 +1,40 @@
 services:
   db:
     image: postgres:16
-    restart: unless-stopped
+    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./code/database/migrations:/docker-entrypoint-initdb.d
 
   api:
-    build: ./code/api/lambda_hono
+    build:
+      context: .
+      dockerfile: Dockerfile
+    tty: true
     ports:
       - "3000:3000"
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
     volumes:
-      - ./code:/code
-      - /code/api/lambda_hono/node_modules
-    depends_on:
-      - db
+      - ./code/api/lambda_hono/src:/app/code/api/lambda_hono/src
+      - ./code/domain:/app/code/domain
+    environment:
+      NODE_PATH: /app/code/api/lambda_hono/node_modules
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSL: "true"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-eu-west-3}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
 
 volumes:
   postgres_data:

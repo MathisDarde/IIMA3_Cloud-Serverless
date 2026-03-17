@@ -4,6 +4,8 @@ import {
   ListUsersCommand,
   AdminUpdateUserAttributesCommand,
   AttributeType,
+  SignUpCommand,
+  InitiateAuthCommand,
 } from '@aws-sdk/client-cognito-identity-provider'
 
 const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-west-3' })
@@ -29,6 +31,32 @@ export async function getUserByEmail(email: string) {
     })
   )
   return result.Users?.[0] ?? null
+}
+
+export async function register(email: string, password: string) {
+  const result = await client.send(
+    new SignUpCommand({
+      ClientId: process.env.COGNITO_CLIENT_ID!,
+      Username: email,
+      Password: password,
+      UserAttributes: [{ Name: 'email', Value: email }],
+    })
+  )
+  return result.UserSub!
+}
+
+export async function login(email: string, password: string) {
+  const result = await client.send(
+    new InitiateAuthCommand({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: process.env.COGNITO_CLIENT_ID!,
+      AuthParameters: {
+        USERNAME: email,
+        PASSWORD: password,
+      },
+    })
+  )
+  return result.AuthenticationResult!
 }
 
 export async function updateUserBySub(sub: string, attributes: Record<string, string>) {
