@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import { handle } from 'hono/aws-lambda'
+import users from './routes/users'
 
-const app = new Hono()
+export const app = new Hono()
 
-app.get('/', (c) => {
-  return c.json({ message: 'API is running' })
-})
+app.get('/', (c) => c.json({ message: 'API is running' }))
+app.route('/users', users)
 
 export const handler = handle(app)
