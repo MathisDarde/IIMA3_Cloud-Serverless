@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS backups (
+  id SERIAL PRIMARY KEY,
+  s3_key VARCHAR(500) NOT NULL,
+  size_bytes INTEGER,
+  status VARCHAR(50) NOT NULL DEFAULT 'success',
+  created_at TIMESTAMP DEFAULT NOW()
+);

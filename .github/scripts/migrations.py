@@ -16,6 +16,7 @@ home_env = f"{home_repo}/environments/{env}"
 try:
     import dotenv
     dotenv.load_dotenv(f"{home_env}/.env.{env}.deploy")
+    dotenv.load_dotenv(f"{home_repo}/.env")
     print("Loaded .env file")
 except:
     print("No .env file found")
