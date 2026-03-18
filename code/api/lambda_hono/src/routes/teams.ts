@@ -1,7 +1,7 @@
-let teamsSchemaReady = false
+let teamsSchemaReady = false;
 
 async function ensureTeamsSchema() {
-  if (teamsSchemaReady) return
+  if (teamsSchemaReady) return;
 
   await db.query(
     `CREATE TABLE IF NOT EXISTS teams (
@@ -9,8 +9,8 @@ async function ensureTeamsSchema() {
       name VARCHAR(255) NOT NULL,
       created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at TIMESTAMP DEFAULT NOW()
-    )`
-  )
+    )`,
+  );
 
   await db.query(
     `CREATE TABLE IF NOT EXISTS team_members (
@@ -19,13 +19,17 @@ async function ensureTeamsSchema() {
       role VARCHAR(50) NOT NULL DEFAULT 'member',
       joined_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (team_id, user_id)
-    )`
-  )
+    )`,
+  );
 
-  await db.query('CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id)')
-  await db.query('CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id)')
+  await db.query(
+    "CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id)",
+  );
+  await db.query(
+    "CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id)",
+  );
 
-  teamsSchemaReady = true
+  teamsSchemaReady = true;
 }
 import { Hono } from "hono";
 import { db } from "../db";
@@ -98,7 +102,7 @@ async function requireCurrentUserId(c: any) {
   }
 
   try {
-    await ensureTeamsSchema()
+    await ensureTeamsSchema();
     const userId = await getOrCreateCurrentDbUser(accessToken);
     return { error: null, userId };
   } catch (error) {
@@ -106,10 +110,14 @@ async function requireCurrentUserId(c: any) {
     return {
       error: c.json(
         {
-          error: "Unable to use teams service. Check database connectivity/migrations.",
-          details: process.env.NODE_ENV === "production" ? undefined : String((error as Error)?.message),
+          error:
+            "Unable to use teams service. Check database connectivity/migrations.",
+          details:
+            process.env.NODE_ENV === "production"
+              ? undefined
+              : String((error as Error)?.message),
         },
-        500
+        500,
       ),
       userId: null,
     };
