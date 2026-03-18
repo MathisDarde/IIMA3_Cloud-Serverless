@@ -51,9 +51,6 @@ function pickAttribute(attributes: CognitoAttr[] | undefined, name: string) {
 async function getOrCreateCurrentDbUser(accessToken: string) {
   const cognitoUser = await getCurrentUser(accessToken);
   const sub = pickAttribute(cognitoUser.UserAttributes, "sub");
-  const email = pickAttribute(cognitoUser.UserAttributes, "email");
-  const firstName = pickAttribute(cognitoUser.UserAttributes, "given_name");
-  const lastName = pickAttribute(cognitoUser.UserAttributes, "family_name");
 
   if (!sub) {
     throw new Error("Invalid Cognito user: missing sub");
@@ -65,31 +62,26 @@ async function getOrCreateCurrentDbUser(accessToken: string) {
   );
 
   if (existing.rowCount && existing.rowCount > 0) {
-    const updateResult = await db.query(
-      `UPDATE users
-       SET email = COALESCE($1, email),
-           first_name = COALESCE($2, first_name),
-           last_name = COALESCE($3, last_name),
-           updated_at = NOW()
-       WHERE id = $4
-       RETURNING id`,
-      [email, firstName, lastName, existing.rows[0].id],
-    );
-    return updateResult.rows[0].id as number;
-  }
-
-  if (!email) {
-    throw new Error("Invalid Cognito user: missing email");
+    return existing.rows[0].id as number;
   }
 
   const inserted = await db.query(
-    `INSERT INTO users (cognito_sub, email, first_name, last_name, role, updated_at)
-     VALUES ($1, $2, $3, $4, 'user', NOW())
+    `INSERT INTO users (cognito_sub, role)
+     VALUES ($1, 'user')
+     ON CONFLICT (cognito_sub) DO NOTHING
      RETURNING id`,
-    [sub, email, firstName, lastName],
+    [sub],
   );
 
-  return inserted.rows[0].id as number;
+  if (inserted.rowCount && inserted.rowCount > 0) {
+    return inserted.rows[0].id as number;
+  }
+
+  const fallback = await db.query(
+    "SELECT id FROM users WHERE cognito_sub = $1",
+    [sub],
+  );
+  return fallback.rows[0].id as number;
 }
 
 async function requireCurrentUserId(c: any) {

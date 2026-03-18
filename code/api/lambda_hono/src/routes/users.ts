@@ -6,7 +6,7 @@ const users = new Hono();
 
 users.get("/", async (c) => {
   const result = await db.query(
-    "SELECT id, cognito_sub, email, first_name, last_name, role, created_at, updated_at FROM users",
+    "SELECT id, cognito_sub, role, created_at FROM users",
   );
   return c.json({ users: result.rows });
 });
@@ -14,7 +14,7 @@ users.get("/", async (c) => {
 users.get("/:id", async (c) => {
   const id = c.req.param("id");
   const result = await db.query(
-    "SELECT id, cognito_sub, email, first_name, last_name, role, created_at, updated_at FROM users WHERE id = $1",
+    "SELECT id, cognito_sub, role, created_at FROM users WHERE id = $1",
     [id],
   );
   return c.json({ user: result.rows[0] });
@@ -27,24 +27,16 @@ users.post("/", async (c) => {
     return c.json({ error: "Email and password are required" }, 400);
   }
 
-  const existing = await db.query(
-    "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
-    [email],
-  );
-  if (existing.rowCount && existing.rowCount > 0) {
-    return c.json({ error: "Email already used" }, 409);
-  }
-
   const cognitoSub = await register(email, password, {
     given_name: first_name,
     family_name: last_name,
   });
 
   const result = await db.query(
-    `INSERT INTO users (cognito_sub, email, first_name, last_name, role, updated_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())
-     RETURNING id, cognito_sub, email, first_name, last_name, role, created_at, updated_at`,
-    [cognitoSub, email, first_name ?? null, last_name ?? null, role ?? "user"],
+    `INSERT INTO users (cognito_sub, role)
+     VALUES ($1, $2)
+     RETURNING id, cognito_sub, role, created_at`,
+    [cognitoSub, role ?? "user"],
   );
 
   return c.json({ user: result.rows[0] }, 201);

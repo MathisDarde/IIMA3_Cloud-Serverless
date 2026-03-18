@@ -44,11 +44,31 @@ async function resolveCurrentUserId(accessToken: string): Promise<number> {
   const sub = pickAttribute(cognitoUser.UserAttributes, "sub");
   if (!sub) throw new Error("Invalid Cognito user: missing sub");
 
-  const result = await db.query("SELECT id FROM users WHERE cognito_sub = $1", [
-    sub,
-  ]);
-  if (!result.rowCount) throw new Error("User not found in database");
-  return result.rows[0].id as number;
+  const existing = await db.query(
+    "SELECT id FROM users WHERE cognito_sub = $1",
+    [sub],
+  );
+  if (existing.rowCount && existing.rowCount > 0) {
+    return existing.rows[0].id as number;
+  }
+
+  const inserted = await db.query(
+    `INSERT INTO users (cognito_sub, role)
+     VALUES ($1, 'user')
+     ON CONFLICT (cognito_sub) DO NOTHING
+     RETURNING id`,
+    [sub],
+  );
+  if (inserted.rowCount && inserted.rowCount > 0) {
+    return inserted.rows[0].id as number;
+  }
+
+  const fallback = await db.query(
+    "SELECT id FROM users WHERE cognito_sub = $1",
+    [sub],
+  );
+  if (!fallback.rowCount) throw new Error("User not found in database");
+  return fallback.rows[0].id as number;
 }
 
 async function requireCurrentUserId(c: any) {
