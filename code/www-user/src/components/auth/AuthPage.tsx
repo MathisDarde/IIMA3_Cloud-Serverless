@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, ApiError } from "../../lib/api";
+import { api } from "../../lib/api";
 
 type Props = {
   onLogin: (token: string) => void;
