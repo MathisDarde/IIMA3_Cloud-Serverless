@@ -1,31 +1,53 @@
-import { Hono } from 'hono'
-import { db } from '../db'
-import { register } from '../../../../domain/aws_cognito.service'
+import { Hono } from "hono";
+import { db } from "../db";
+import { register } from "../services/cognito";
 
-const users = new Hono()
+const users = new Hono();
 
-users.get('/', async (c) => {
-  const result = await db.query('SELECT id, cognito_sub, role, created_at FROM users')
-  return c.json({ users: result.rows })
-})
+users.get("/", async (c) => {
+  const result = await db.query(
+    "SELECT id, cognito_sub, email, first_name, last_name, role, created_at, updated_at FROM users",
+  );
+  return c.json({ users: result.rows });
+});
 
-users.get('/:id', async (c) => {
-  const id = c.req.param('id')
-  const result = await db.query('SELECT id, cognito_sub, role, created_at FROM users WHERE id = $1', [id])
-  return c.json({ user: result.rows[0] })
-})
+users.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const result = await db.query(
+    "SELECT id, cognito_sub, email, first_name, last_name, role, created_at, updated_at FROM users WHERE id = $1",
+    [id],
+  );
+  return c.json({ user: result.rows[0] });
+});
 
-users.post('/', async (c) => {
-  const { email, password, role } = await c.req.json()
+users.post("/", async (c) => {
+  const { email, password, role, first_name, last_name } = await c.req.json();
 
-  const cognitoSub = await register(email, password)
+  if (!email || !password) {
+    return c.json({ error: "Email and password are required" }, 400);
+  }
+
+  const existing = await db.query(
+    "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+    [email],
+  );
+  if (existing.rowCount && existing.rowCount > 0) {
+    return c.json({ error: "Email already used" }, 409);
+  }
+
+  const cognitoSub = await register(email, password, {
+    given_name: first_name,
+    family_name: last_name,
+  });
 
   const result = await db.query(
-    'INSERT INTO users (cognito_sub, role) VALUES ($1, $2) RETURNING id, cognito_sub, role, created_at',
-    [cognitoSub, role ?? 'user']
-  )
+    `INSERT INTO users (cognito_sub, email, first_name, last_name, role, updated_at)
+     VALUES ($1, $2, $3, $4, $5, NOW())
+     RETURNING id, cognito_sub, email, first_name, last_name, role, created_at, updated_at`,
+    [cognitoSub, email, first_name ?? null, last_name ?? null, role ?? "user"],
+  );
 
-  return c.json({ user: result.rows[0] }, 201)
-})
+  return c.json({ user: result.rows[0] }, 201);
+});
 
-export default users
+export default users;
