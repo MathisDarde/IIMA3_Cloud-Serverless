@@ -1,17 +1,4 @@
 services:
-  db:
-    image: postgres:16
-    restart: always
-    environment:
-      POSTGRES_DB: app
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./code/database/migrations:/docker-entrypoint-initdb.d
-
   api:
     build:
       context: .
@@ -35,6 +22,3 @@ services:
       AWS_REGION: ${AWS_REGION:-eu-west-3}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
-
-volumes:
-  postgres_data:
