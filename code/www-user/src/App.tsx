@@ -41,17 +41,20 @@ type TeamMember = {
 type AppView = "auth" | "dashboard";
 
 const ACCESS_TOKEN_STORAGE_KEY = "user.access_token";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const API_BASE_URL = import.meta.env.VITE_BASE_API_URL ?? "/api";
 
 function getStoredToken() {
   return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? "";
 }
+
+class UnauthorizedError extends Error {}
 
 async function handleApiResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message =
       typeof payload?.error === "string" ? payload.error : "Erreur API";
+    if (response.status === 401) throw new UnauthorizedError(message);
     throw new Error(message);
   }
   return payload as T;
@@ -96,6 +99,17 @@ function App() {
   const clearFeedback = () => {
     setError("");
     setSuccess("");
+  };
+
+  const handleUnauthorized = () => {
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    setToken("");
+    setProfile(null);
+    setTeams([]);
+    setTeamMembers([]);
+    setSelectedTeamId(null);
+    setView("auth");
+    setError("Session expirée. Veuillez vous reconnecter.");
   };
 
   const onRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -240,6 +254,10 @@ function App() {
       });
       setSuccess("Profil charge.");
     } catch (apiError) {
+      if (apiError instanceof UnauthorizedError) {
+        handleUnauthorized();
+        return;
+      }
       setError(
         apiError instanceof Error
           ? apiError.message
@@ -294,6 +312,10 @@ function App() {
         setTeamMembers([]);
       }
     } catch (apiError) {
+      if (apiError instanceof UnauthorizedError) {
+        handleUnauthorized();
+        return;
+      }
       setError(
         apiError instanceof Error
           ? apiError.message
