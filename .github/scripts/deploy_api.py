@@ -68,7 +68,6 @@ def deploy_lambda(function_name, zip_path):
             "DB_PASSWORD": os.getenv("DB_PASSWORD"),
             "DB_NAME": os.getenv("DB_NAME"),
             "DB_SSL": "true",
-            "AWS_REGION": os.getenv("AWS_REGION", "eu-west-3"),
             "COGNITO_USER_POOL_ID": os.getenv("COGNITO_USER_POOL_ID"),
             "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID"),
         }.items() if v}},
