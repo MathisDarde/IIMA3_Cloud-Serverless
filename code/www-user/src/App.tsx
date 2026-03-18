@@ -10,6 +10,12 @@ function getStoredToken() {
 
 export default function App() {
   const [token, setToken] = useState(getStoredToken);
+  const invitationIdParam = new URLSearchParams(window.location.search).get(
+    "invitation",
+  );
+  const invitationId = invitationIdParam ? Number(invitationIdParam) : null;
+  const isValidInvitationId =
+    invitationId !== null && Number.isFinite(invitationId);
 
   const handleLogin = (accessToken: string) => {
     localStorage.setItem(TOKEN_KEY, accessToken);
@@ -22,7 +28,12 @@ export default function App() {
   };
 
   if (!token) {
-    return <AuthPage onLogin={handleLogin} />;
+    return (
+      <AuthPage
+        onLogin={handleLogin}
+        invitationId={isValidInvitationId ? invitationId : null}
+      />
+    );
   }
 
   return (
@@ -30,6 +41,7 @@ export default function App() {
       token={token}
       onLogout={handleLogout}
       onUnauthorized={handleLogout}
+      highlightedInvitationId={isValidInvitationId ? invitationId : null}
     />
   );
 }

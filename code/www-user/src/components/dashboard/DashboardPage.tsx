@@ -2,23 +2,36 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { ProfileSection } from "./ProfileSection";
 import { TeamsSection } from "./TeamsSection";
+import { InvitationsSection } from "./InvitationsSection";
 import type { Profile, Team } from "../../types";
 
 type Props = {
   token: string;
   onLogout: () => void;
   onUnauthorized: () => void;
+  highlightedInvitationId: number | null;
 };
 
-export function DashboardPage({ token, onLogout, onUnauthorized }: Props) {
+export function DashboardPage({
+  token,
+  onLogout,
+  onUnauthorized,
+  highlightedInvitationId,
+}: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [invitationsReloadSignal, setInvitationsReloadSignal] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  async function loadTeams() {
+    const teamsData = await api.teams.list(token);
+    setTeams(teamsData.teams);
+  }
 
   useEffect(() => {
     Promise.all([
       api.auth.getProfile(token).then((d) => setProfile(d.profile)),
-      api.teams.list(token).then((d) => setTeams(d.teams)),
+      loadTeams(),
     ])
       .catch((err: any) => {
         if (err?.status === 401) onUnauthorized();
@@ -38,7 +51,9 @@ export function DashboardPage({ token, onLogout, onUnauthorized }: Props) {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-violet-700">Plateforme Collaborative</h1>
+          <h1 className="text-xl font-bold text-violet-700">
+            Plateforme Collaborative
+          </h1>
           {profile && (
             <p className="text-sm text-gray-500 mt-0.5">
               Bonjour, {profile.first_name ?? profile.email} 👋
@@ -64,6 +79,16 @@ export function DashboardPage({ token, onLogout, onUnauthorized }: Props) {
           token={token}
           teams={teams}
           onTeamCreated={(team) => setTeams((p) => [team, ...p])}
+          onInvitationCreated={() =>
+            setInvitationsReloadSignal((prev) => prev + 1)
+          }
+          onUnauthorized={onUnauthorized}
+        />
+        <InvitationsSection
+          token={token}
+          highlightedInvitationId={highlightedInvitationId}
+          reloadSignal={invitationsReloadSignal}
+          onInvitationAccepted={loadTeams}
           onUnauthorized={onUnauthorized}
         />
       </main>

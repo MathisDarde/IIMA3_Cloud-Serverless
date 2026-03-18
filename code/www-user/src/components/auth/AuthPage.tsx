@@ -3,11 +3,12 @@ import { api } from "../../lib/api";
 
 type Props = {
   onLogin: (token: string) => void;
+  invitationId: number | null;
 };
 
 type AuthTab = "login" | "register" | "confirm";
 
-export function AuthPage({ onLogin }: Props) {
+export function AuthPage({ onLogin, invitationId }: Props) {
   const [tab, setTab] = useState<AuthTab>("login");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +23,10 @@ export function AuthPage({ onLogin }: Props) {
   });
   const [confirmForm, setConfirmForm] = useState({ email: "", code: "" });
 
-  const clear = () => { setError(""); setSuccess(""); };
+  const clear = () => {
+    setError("");
+    setSuccess("");
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +48,9 @@ export function AuthPage({ onLogin }: Props) {
     setBusy(true);
     try {
       await api.auth.register(registerForm);
-      setSuccess("Compte créé ! Vérifiez votre email pour activer votre compte.");
+      setSuccess(
+        "Compte créé ! Vérifiez votre email pour activer votre compte.",
+      );
       setConfirmForm((prev) => ({ ...prev, email: registerForm.email }));
       setTab("confirm");
     } catch (err) {
@@ -93,16 +99,30 @@ export function AuthPage({ onLogin }: Props) {
     <div className="min-h-screen bg-violet-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-violet-700 font-serif">Plateforme Collaborative</h1>
-          <p className="text-gray-500 mt-2 text-sm">Gérez vos équipes et projets</p>
+          <h1 className="text-3xl font-bold text-violet-700 font-serif">
+            Plateforme Collaborative
+          </h1>
+          <p className="text-gray-500 mt-2 text-sm">
+            Gérez vos équipes et projets
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {invitationId && (
+            <div className="px-6 py-3 border-b border-amber-200 bg-amber-50 text-amber-900 text-sm">
+              Vous avez ete invite a rejoindre une equipe. Connectez-vous pour
+              repondre a l'invitation.
+            </div>
+          )}
+
           <div className="flex border-b border-gray-100">
             {tabs.map((t) => (
               <button
                 key={t.key}
-                onClick={() => { clear(); setTab(t.key); }}
+                onClick={() => {
+                  clear();
+                  setTab(t.key);
+                }}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   tab === t.key
                     ? "text-violet-700 border-b-2 border-violet-600 bg-violet-50"
@@ -132,7 +152,9 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="email"
                     value={loginForm.email}
-                    onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+                    onChange={(e) =>
+                      setLoginForm((p) => ({ ...p, email: e.target.value }))
+                    }
                     className="input"
                     required
                   />
@@ -141,7 +163,9 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="password"
                     value={loginForm.password}
-                    onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+                    onChange={(e) =>
+                      setLoginForm((p) => ({ ...p, password: e.target.value }))
+                    }
                     className="input"
                     required
                   />
@@ -157,7 +181,12 @@ export function AuthPage({ onLogin }: Props) {
                     <input
                       type="text"
                       value={registerForm.first_name}
-                      onChange={(e) => setRegisterForm((p) => ({ ...p, first_name: e.target.value }))}
+                      onChange={(e) =>
+                        setRegisterForm((p) => ({
+                          ...p,
+                          first_name: e.target.value,
+                        }))
+                      }
                       className="input"
                     />
                   </Field>
@@ -165,7 +194,12 @@ export function AuthPage({ onLogin }: Props) {
                     <input
                       type="text"
                       value={registerForm.last_name}
-                      onChange={(e) => setRegisterForm((p) => ({ ...p, last_name: e.target.value }))}
+                      onChange={(e) =>
+                        setRegisterForm((p) => ({
+                          ...p,
+                          last_name: e.target.value,
+                        }))
+                      }
                       className="input"
                     />
                   </Field>
@@ -174,7 +208,9 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="email"
                     value={registerForm.email}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
+                    onChange={(e) =>
+                      setRegisterForm((p) => ({ ...p, email: e.target.value }))
+                    }
                     className="input"
                     required
                   />
@@ -183,7 +219,12 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="password"
                     value={registerForm.password}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
+                    onChange={(e) =>
+                      setRegisterForm((p) => ({
+                        ...p,
+                        password: e.target.value,
+                      }))
+                    }
                     className="input"
                     required
                   />
@@ -201,7 +242,9 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="email"
                     value={confirmForm.email}
-                    onChange={(e) => setConfirmForm((p) => ({ ...p, email: e.target.value }))}
+                    onChange={(e) =>
+                      setConfirmForm((p) => ({ ...p, email: e.target.value }))
+                    }
                     className="input"
                     required
                   />
@@ -210,7 +253,9 @@ export function AuthPage({ onLogin }: Props) {
                   <input
                     type="text"
                     value={confirmForm.code}
-                    onChange={(e) => setConfirmForm((p) => ({ ...p, code: e.target.value }))}
+                    onChange={(e) =>
+                      setConfirmForm((p) => ({ ...p, code: e.target.value }))
+                    }
                     className="input"
                     required
                   />
@@ -233,16 +278,30 @@ export function AuthPage({ onLogin }: Props) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="block text-sm font-medium text-gray-700 mb-1">{label}</span>
+      <span className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </span>
       {children}
     </label>
   );
 }
 
-function Btn({ children, loading }: { children: React.ReactNode; loading: boolean }) {
+function Btn({
+  children,
+  loading,
+}: {
+  children: React.ReactNode;
+  loading: boolean;
+}) {
   return (
     <button
       type="submit"

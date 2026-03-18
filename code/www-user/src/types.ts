@@ -34,6 +34,19 @@ export type TeamMember = {
   joined_at: string;
 };
 
+export type TeamInvitation = {
+  id: number;
+  team_id: number;
+  team_name: string;
+  invitee_email: string;
+  status: "pending" | "accepted" | "declined" | string;
+  created_at: string;
+  responded_at: string | null;
+  invited_by_email: string;
+  invited_by_first_name: string | null;
+  invited_by_last_name: string | null;
+};
+
 export type Project = {
   id: number;
   team_id: number;

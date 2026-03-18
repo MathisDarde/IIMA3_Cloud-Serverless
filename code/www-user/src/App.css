@@ -8,10 +8,18 @@
   background: white;
   color: #111827;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .input:focus {
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.invite-item-focus {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 1px #ddd6fe;
 }

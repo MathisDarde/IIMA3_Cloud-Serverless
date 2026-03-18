@@ -37,16 +37,21 @@ export const api = {
       password: string;
       first_name?: string;
       last_name?: string;
-    }) => request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+    }) =>
+      request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
 
     login: (body: { email: string; password: string }) =>
-      request<{ access_token: string; id_token: string; refresh_token: string }>(
-        "/auth/login",
-        { method: "POST", body: JSON.stringify(body) },
-      ),
+      request<{
+        access_token: string;
+        id_token: string;
+        refresh_token: string;
+      }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
 
     confirmEmail: (body: { email: string; code: string }) =>
-      request("/auth/confirm-email", { method: "POST", body: JSON.stringify(body) }),
+      request("/auth/confirm-email", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
 
     resendCode: (email: string) =>
       request("/auth/resend-confirmation-code", {
@@ -54,38 +59,87 @@ export const api = {
         body: JSON.stringify({ email }),
       }),
 
-    getProfile: (token: string) => request<{ profile: any }>("/auth/profile", {}, token),
+    getProfile: (token: string) =>
+      request<{ profile: any }>("/auth/profile", {}, token),
 
-    updateProfile: (token: string, body: { first_name?: string; last_name?: string }) =>
-      request<{ profile: any }>("/auth/profile", {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      }, token),
+    updateProfile: (
+      token: string,
+      body: { first_name?: string; last_name?: string },
+    ) =>
+      request<{ profile: any }>(
+        "/auth/profile",
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+        token,
+      ),
   },
 
   teams: {
-    list: (token: string) =>
-      request<{ teams: any[] }>("/teams", {}, token),
+    list: (token: string) => request<{ teams: any[] }>("/teams", {}, token),
 
     create: (token: string, name: string) =>
-      request<{ team: any }>("/teams", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-      }, token),
+      request<{ team: any }>(
+        "/teams",
+        {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        },
+        token,
+      ),
 
     getMembers: (token: string, teamId: number) =>
       request<{ members: any[] }>(`/teams/${teamId}/members`, {}, token),
+
+    invite: (token: string, teamId: number, email: string) =>
+      request<{ invitation: any; warning?: string }>(
+        `/teams/${teamId}/invitations`,
+        {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        },
+        token,
+      ),
+
+    listMyInvitations: (token: string) =>
+      request<{ invitations: any[] }>("/teams/invitations/me", {}, token),
+
+    acceptInvitation: (token: string, invitationId: number) =>
+      request<{ message: string }>(
+        `/teams/invitations/${invitationId}/accept`,
+        {
+          method: "PATCH",
+        },
+        token,
+      ),
+
+    refuseInvitation: (token: string, invitationId: number) =>
+      request<{ message: string }>(
+        `/teams/invitations/${invitationId}/refuse`,
+        {
+          method: "PATCH",
+        },
+        token,
+      ),
   },
 
   projects: {
     list: (token: string, teamId: number) =>
       request<{ projects: any[] }>(`/projects?team_id=${teamId}`, {}, token),
 
-    create: (token: string, body: { team_id: number; name: string; description?: string }) =>
-      request<{ project: any }>("/projects", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }, token),
+    create: (
+      token: string,
+      body: { team_id: number; name: string; description?: string },
+    ) =>
+      request<{ project: any }>(
+        "/projects",
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+        token,
+      ),
 
     get: (token: string, id: number) =>
       request<{ project: any }>(`/projects/${id}`, {}, token),
@@ -95,12 +149,20 @@ export const api = {
       id: number,
       body: { name?: string; description?: string; status?: string },
     ) =>
-      request<{ project: any }>(`/projects/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      }, token),
+      request<{ project: any }>(
+        `/projects/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+        token,
+      ),
 
     delete: (token: string, id: number) =>
-      request<{ message: string }>(`/projects/${id}`, { method: "DELETE" }, token),
+      request<{ message: string }>(
+        `/projects/${id}`,
+        { method: "DELETE" },
+        token,
+      ),
   },
 };

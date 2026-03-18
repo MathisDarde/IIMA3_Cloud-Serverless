@@ -7,18 +7,30 @@ type Props = {
   token: string;
   teams: Team[];
   onTeamCreated: (team: Team) => void;
+  onInvitationCreated: () => Promise<void> | void;
   onUnauthorized: () => void;
 };
 
-export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Props) {
+export function TeamsSection({
+  token,
+  teams,
+  onTeamCreated,
+  onInvitationCreated,
+  onUnauthorized,
+}: Props) {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"projects" | "members">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "members">(
+    "projects",
+  );
 
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteFeedback, setInviteFeedback] = useState("");
   const [error, setError] = useState("");
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -31,7 +43,10 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
       setCreateName("");
       setShowCreate(false);
     } catch (err: any) {
-      if (err?.status === 401) { onUnauthorized(); return; }
+      if (err?.status === 401) {
+        onUnauthorized();
+        return;
+      }
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
       setCreateBusy(false);
@@ -42,6 +57,39 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
     setSelectedTeam(team);
     setActiveTab("projects");
     setMembers([]);
+    setInviteEmail("");
+    setInviteFeedback("");
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTeam) return;
+
+    setInviteBusy(true);
+    setInviteFeedback("");
+    setError("");
+
+    try {
+      const data = await api.teams.invite(
+        token,
+        selectedTeam.id,
+        inviteEmail.trim(),
+      );
+      setInviteEmail("");
+      setInviteFeedback(
+        data.warning ??
+          "Invitation envoyee. La personne la verra dans son espace.",
+      );
+      await onInvitationCreated();
+    } catch (err: any) {
+      if (err?.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setInviteBusy(false);
+    }
   };
 
   const loadMembers = async (team: Team) => {
@@ -50,7 +98,10 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
       const data = await api.teams.getMembers(token, team.id);
       setMembers(data.members);
     } catch (err: any) {
-      if (err?.status === 401) { onUnauthorized(); return; }
+      if (err?.status === 401) {
+        onUnauthorized();
+        return;
+      }
     } finally {
       setMembersLoading(false);
     }
@@ -111,7 +162,9 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
         )}
 
         {teams.length === 0 ? (
-          <p className="text-sm text-gray-400 py-4 text-center">Aucune équipe pour le moment.</p>
+          <p className="text-sm text-gray-400 py-4 text-center">
+            Aucune équipe pour le moment.
+          </p>
         ) : (
           <div className="space-y-2">
             {teams.map((team) => (
@@ -125,9 +178,13 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900 text-sm">{team.name}</span>
+                  <span className="font-medium text-gray-900 text-sm">
+                    {team.name}
+                  </span>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{team.member_count} membre(s)</span>
+                    <span className="text-xs text-gray-400">
+                      {team.member_count} membre(s)
+                    </span>
                     <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium capitalize">
                       {team.role}
                     </span>
@@ -141,6 +198,34 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
 
       {selectedTeam && (
         <div>
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Inviter dans {selectedTeam.name}
+            </h2>
+            {inviteFeedback && (
+              <div className="mb-3 rounded-lg bg-green-50 border border-green-200 text-green-700 px-4 py-3 text-sm">
+                {inviteFeedback}
+              </div>
+            )}
+            <form onSubmit={handleInvite} className="flex gap-2">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="input flex-1"
+                placeholder="email@exemple.com"
+                required
+              />
+              <button
+                type="submit"
+                disabled={inviteBusy}
+                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {inviteBusy ? "..." : "Inviter"}
+              </button>
+            </form>
+          </section>
+
           <div className="flex border-b border-gray-200 mb-4">
             <TabBtn
               active={activeTab === "projects"}
@@ -171,9 +256,13 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
                 Membres — {selectedTeam.name}
               </h2>
               {membersLoading ? (
-                <p className="text-sm text-gray-400 text-center py-4">Chargement...</p>
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Chargement...
+                </p>
               ) : members.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">Aucun membre.</p>
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Aucun membre.
+                </p>
               ) : (
                 <div className="space-y-2">
                   {members.map((m) => (
