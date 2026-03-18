@@ -33,7 +33,7 @@ async function ensureTeamsSchema() {
 }
 import { Hono } from "hono";
 import { db } from "../db";
-import { getCurrentUser } from "../services/cognito";
+import { getCurrentUser, getUserBySub } from "../services/cognito";
 
 type CognitoAttr = { Name?: string; Value?: string };
 
@@ -192,9 +192,7 @@ teams.get("/:id/members", async (c) => {
 
   const members = await db.query(
     `SELECT u.id,
-            u.email,
-            u.first_name,
-            u.last_name,
+            u.cognito_sub,
             tm.role,
             tm.joined_at
      FROM team_members tm
@@ -204,7 +202,24 @@ teams.get("/:id/members", async (c) => {
     [teamId],
   );
 
-  return c.json({ members: members.rows });
+  const membersWithProfile = await Promise.all(
+    members.rows.map(async (m) => {
+      try {
+        const cognitoUser = await getUserBySub(m.cognito_sub);
+        const attrs = cognitoUser?.Attributes;
+        return {
+          ...m,
+          email: attrs?.find((a) => a.Name === "email")?.Value ?? null,
+          first_name: attrs?.find((a) => a.Name === "given_name")?.Value ?? null,
+          last_name: attrs?.find((a) => a.Name === "family_name")?.Value ?? null,
+        };
+      } catch {
+        return { ...m, email: null, first_name: null, last_name: null };
+      }
+    }),
+  );
+
+  return c.json({ members: membersWithProfile });
 });
 
 export default teams;

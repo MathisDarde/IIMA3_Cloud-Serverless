@@ -185,9 +185,11 @@ export function TeamsSection({ token, teams, onTeamCreated, onUnauthorized }: Pr
                         <p className="text-sm font-medium text-gray-900">
                           {m.first_name || m.last_name
                             ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim()
-                            : m.email}
+                            : m.email ?? m.cognito_sub}
                         </p>
-                        <p className="text-xs text-gray-400">{m.email}</p>
+                        {m.email && (
+                          <p className="text-xs text-gray-400">{m.email}</p>
+                        )}
                       </div>
                       <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium capitalize">
                         {m.role}

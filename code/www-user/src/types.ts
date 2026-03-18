@@ -26,7 +26,8 @@ export type Team = {
 
 export type TeamMember = {
   id: number;
-  email: string;
+  cognito_sub: string;
+  email: string | null;
   first_name: string | null;
   last_name: string | null;
   role: string;
