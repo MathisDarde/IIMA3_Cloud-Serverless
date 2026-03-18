@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../db";
-import { getCurrentUser } from "../services/cognito";
+import { getCurrentUser, getUserBySub } from "../services/cognito";
 import { sendTeamInvitationEmail } from "../services/ses";
 
 type CognitoAttr = { Name?: string; Value?: string };
@@ -82,16 +82,9 @@ async function getOrCreateCurrentDbUser(
   const cognitoUser = await getCurrentUser(accessToken);
   const sub = pickAttribute(cognitoUser.UserAttributes, "sub");
   const email = pickAttribute(cognitoUser.UserAttributes, "email");
-  const firstName = pickAttribute(cognitoUser.UserAttributes, "given_name");
-  const lastName = pickAttribute(cognitoUser.UserAttributes, "family_name");
 
-  if (!sub) {
-    throw new Error("Invalid Cognito user: missing sub");
-  }
-
-  if (!email) {
-    throw new Error("Invalid Cognito user: missing email");
-  }
+  if (!sub) throw new Error("Invalid Cognito user: missing sub");
+  if (!email) throw new Error("Invalid Cognito user: missing email");
 
   const existing = await db.query(
     "SELECT id FROM users WHERE cognito_sub = $1",
@@ -99,28 +92,26 @@ async function getOrCreateCurrentDbUser(
   );
 
   if (existing.rowCount && existing.rowCount > 0) {
-    const updateResult = await db.query(
-      `UPDATE users
-       SET email = COALESCE($1, email),
-           first_name = COALESCE($2, first_name),
-           last_name = COALESCE($3, last_name),
-           updated_at = NOW()
-       WHERE id = $4
-       RETURNING id`,
-      [email, firstName, lastName, existing.rows[0].id],
-    );
-
-    return { userId: updateResult.rows[0].id as number, email };
+    return { userId: existing.rows[0].id as number, email };
   }
 
   const inserted = await db.query(
-    `INSERT INTO users (cognito_sub, email, first_name, last_name, role, updated_at)
-     VALUES ($1, $2, $3, $4, 'user', NOW())
+    `INSERT INTO users (cognito_sub, role)
+     VALUES ($1, 'user')
+     ON CONFLICT (cognito_sub) DO NOTHING
      RETURNING id`,
-    [sub, email, firstName, lastName],
+    [sub],
   );
 
-  return { userId: inserted.rows[0].id as number, email };
+  if (inserted.rowCount && inserted.rowCount > 0) {
+    return { userId: inserted.rows[0].id as number, email };
+  }
+
+  const fallback = await db.query(
+    "SELECT id FROM users WHERE cognito_sub = $1",
+    [sub],
+  );
+  return { userId: fallback.rows[0].id as number, email };
 }
 
 async function requireCurrentUser(c: any) {
@@ -231,9 +222,7 @@ teams.get("/:id/members", async (c) => {
 
   const members = await db.query(
     `SELECT u.id,
-            u.email,
-            u.first_name,
-            u.last_name,
+            u.cognito_sub,
             tm.role,
             tm.joined_at
      FROM team_members tm
@@ -243,7 +232,24 @@ teams.get("/:id/members", async (c) => {
     [teamId],
   );
 
-  return c.json({ members: members.rows });
+  const membersWithProfile = await Promise.all(
+    members.rows.map(async (m) => {
+      try {
+        const cognitoUser = await getUserBySub(m.cognito_sub);
+        const attrs = cognitoUser?.Attributes;
+        return {
+          ...m,
+          email: attrs?.find((a: CognitoAttr) => a.Name === "email")?.Value ?? null,
+          first_name: attrs?.find((a: CognitoAttr) => a.Name === "given_name")?.Value ?? null,
+          last_name: attrs?.find((a: CognitoAttr) => a.Name === "family_name")?.Value ?? null,
+        };
+      } catch {
+        return { ...m, email: null, first_name: null, last_name: null };
+      }
+    }),
+  );
+
+  return c.json({ members: membersWithProfile });
 });
 
 teams.post("/:id/invitations", async (c) => {
@@ -283,22 +289,8 @@ teams.post("/:id/invitations", async (c) => {
 
   const teamName = String(teamExists.rows[0].name);
 
-  const inviteeUser = await db.query(
-    "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
-    [inviteeEmail],
-  );
-  const inviteeUserId = inviteeUser.rows[0]?.id ?? null;
-
-  if (inviteeUserId) {
-    const alreadyMember = await db.query(
-      "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2",
-      [teamId, inviteeUserId],
-    );
-
-    if (alreadyMember.rowCount) {
-      return c.json({ error: "User is already a member of this team" }, 409);
-    }
-  }
+  // inviteeUserId will be resolved when the invitation is accepted
+  const inviteeUserId = null;
 
   try {
     const invitation = await db.query(
@@ -347,9 +339,7 @@ teams.get("/invitations/me", async (c) => {
             ti.status,
             ti.created_at,
             ti.responded_at,
-            inviter.email AS invited_by_email,
-            inviter.first_name AS invited_by_first_name,
-            inviter.last_name AS invited_by_last_name
+            inviter.cognito_sub AS invited_by_sub
      FROM team_invitations ti
      JOIN teams t ON t.id = ti.team_id
      JOIN users inviter ON inviter.id = ti.invited_by_user_id

@@ -70,6 +70,8 @@ def deploy_lambda(function_name, zip_path):
             "DB_SSL": "true",
             "COGNITO_USER_POOL_ID": os.getenv("COGNITO_USER_POOL_ID"),
             "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID"),
+            "SES_FROM_EMAIL": os.getenv("SES_FROM_EMAIL"),
+            "APP_URL": os.getenv("APP_URL_STG") if env == "stg" else os.getenv("APP_URL_PRD"),
         }.items() if v}},
     )
     print("Function configuration updated")

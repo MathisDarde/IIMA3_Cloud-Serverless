@@ -42,9 +42,7 @@ export type TeamInvitation = {
   status: "pending" | "accepted" | "declined" | string;
   created_at: string;
   responded_at: string | null;
-  invited_by_email: string;
-  invited_by_first_name: string | null;
-  invited_by_last_name: string | null;
+  invited_by_sub: string;
 };
 
 export type Project = {
