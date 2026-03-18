@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import users from "./routes/users";
 import auth from "./routes/auth";
 import teams from "./routes/teams";
+import projects from "./routes/projects";
 
 export const app = new Hono();
 
@@ -35,5 +36,6 @@ app.get("/", (c) => c.json({ message: "API is running" }));
 app.route("/users", users);
 app.route("/auth", auth);
 app.route("/teams", teams);
+app.route("/projects", projects);
 
 export const handler = handle(app);
