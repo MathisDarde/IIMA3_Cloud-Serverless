@@ -40,7 +40,7 @@ DISTRIBUTION_KEY = "DISTRIBUTION_USER" if folder == "www-user" else "DISTRIBUTIO
 
 
 def build_react(path):
-    subprocess.run(["npm", "install"], cwd=path, check=True)
+    subprocess.run(["npm", "install", "--legacy-peer-deps"], cwd=path, check=True)
     subprocess.run(["npm", "run", "build"], cwd=path, check=True)
 
 
