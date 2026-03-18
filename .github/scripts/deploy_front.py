@@ -40,8 +40,10 @@ DISTRIBUTION_KEY = "DISTRIBUTION_USER" if folder == "www-user" else "DISTRIBUTIO
 
 
 def build_react(path):
+    api_url = os.getenv("API_URL_STG") if env == "stg" else os.getenv("API_URL_PRD")
+    build_env = {**os.environ, "VITE_BASE_API_URL": api_url or ""}
     subprocess.run(["npm", "install", "--legacy-peer-deps"], cwd=path, check=True)
-    subprocess.run(["npm", "run", "build"], cwd=path, check=True)
+    subprocess.run(["npm", "run", "build"], cwd=path, check=True, env=build_env)
 
 
 def get_s3_client():
