@@ -9,96 +9,123 @@ jobs:
   deploy-user:
     name: Deploy frontend-user to PRD
     runs-on: ubuntu-latest
+    container:
+      image: python:3.13
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: code/www-user/package-lock.json
-
-      - name: Install & Build
-        working-directory: code/www-user
+      - name: Install dependencies
         run: |
-          npm install
-          npm run build
+          apt-get update -y && apt-get install -y curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          pip install boto3 python-dotenv
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Sync to S3
-        run: aws s3 sync code/www-user/dist/ s3://${{ secrets.S3_BUCKET_PRD }}/user --delete
-
-      - name: Invalidate CloudFront
-        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CF_DISTRIBUTION_USER_PRD }} --paths "/*"
+      - name: Deploy
+        run: python .github/scripts/deploy_front.py www-user prd
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET_PRD: ${{ secrets.S3_BUCKET_PRD }}
 
   deploy-admin:
     name: Deploy frontend-admin to PRD
     runs-on: ubuntu-latest
+    container:
+      image: python:3.13
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: code/www-admin/package-lock.json
-
-      - name: Install & Build
-        working-directory: code/www-admin
+      - name: Install dependencies
         run: |
-          npm install
-          npm run build
+          apt-get update -y && apt-get install -y curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          pip install boto3 python-dotenv
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Deploy
+        run: python .github/scripts/deploy_front.py www-admin prd
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET_PRD: ${{ secrets.S3_BUCKET_PRD }}
 
-      - name: Sync to S3
-        run: aws s3 sync code/www-admin/dist/ s3://${{ secrets.S3_BUCKET_PRD }}/admin --delete
+  deploy-assets:
+    name: Deploy assets to PRD
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.13
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Invalidate CloudFront
-        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CF_DISTRIBUTION_ADMIN_PRD }} --paths "/*"
+      - name: Install dependencies
+        run: pip install boto3 python-dotenv
+
+      - name: Deploy
+        run: python .github/scripts/deploy_assets.py www-assets prd
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET_ASSETS: ${{ secrets.S3_BUCKET_ASSETS }}
 
   deploy-backend:
     name: Deploy backend to PRD
     runs-on: ubuntu-latest
+    container:
+      image: python:3.13
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: code/api/lambda_hono/package-lock.json
-
-      - name: Install & Build
-        working-directory: code/api/lambda_hono
+      - name: Install dependencies
         run: |
-          npm install
-          npm run build
+          apt-get update -y && apt-get install -y curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          pip install boto3 python-dotenv
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Deploy
+        run: python .github/scripts/deploy_api.py prd
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          LAMBDA_FUNCTION_PRD: ${{ secrets.LAMBDA_FUNCTION_PRD }}
+          DB_HOST: ${{ secrets.DB_HOST_PRD }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD_PRD }}
+          DB_NAME: ${{ secrets.DB_NAME_PRD }}
+          COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID_PRD }}
+          COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID_PRD }}
 
-      - name: Package & Deploy to Lambda
-        working-directory: code/api/lambda_hono
+  deploy-crons:
+    name: Deploy crons to PRD
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
         run: |
-          zip -r function.zip dist/ node_modules/
-          aws lambda update-function-code \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_PRD }} \
-            --zip-file fileb://function.zip
-          aws lambda wait function-updated \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_PRD }}
-          aws lambda update-function-configuration \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_PRD }} \
-            --environment "Variables={DB_HOST=${{ secrets.DB_HOST_PRD }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD_PRD }},DB_NAME=${{ secrets.DB_NAME_PRD }},COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID_PRD }},COGNITO_CLIENT_ID=${{ secrets.COGNITO_CLIENT_ID_PRD }}}"
+          apt-get update -y && apt-get install -y curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          pip install boto3 python-dotenv
+
+      - name: Deploy
+        run: python .github/scripts/deploy_crons.py prd
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          LAMBDA_CRON_PRD: ${{ secrets.LAMBDA_CRON_PRD }}
+          DB_HOST: ${{ secrets.DB_HOST_PRD }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD_PRD }}
+          DB_NAME: ${{ secrets.DB_NAME_PRD }}
+          S3_BUCKET_ASSETS: ${{ secrets.S3_BUCKET_ASSETS }}
