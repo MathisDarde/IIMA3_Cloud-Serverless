@@ -1,8 +1,0 @@
-CREATE TABLE IF NOT EXISTS projects (
-  id SERIAL PRIMARY KEY,
-  team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  status VARCHAR(50) NOT NULL DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT NOW()
-);

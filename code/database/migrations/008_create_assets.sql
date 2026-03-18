@@ -1,9 +1,0 @@
-CREATE TABLE IF NOT EXISTS assets (
-  id SERIAL PRIMARY KEY,
-  project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-  uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  filename VARCHAR(255) NOT NULL,
-  s3_key VARCHAR(500) NOT NULL,
-  size_bytes INTEGER,
-  created_at TIMESTAMP DEFAULT NOW()
-);
