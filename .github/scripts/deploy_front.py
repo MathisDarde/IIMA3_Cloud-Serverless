@@ -30,7 +30,8 @@ with open(f"{home_env}/deploy.{env}.json", "r") as config_file:
 
 try:
     import dotenv
-    dotenv.load_dotenv(f"{home_env}/.env.{env}.deploy")
+    dotenv.load_dotenv(f"{home_repo}/.env")
+    dotenv.load_dotenv(f"{home_env}/.env.{env}.deploy", override=True)
     print("Loaded .env file")
 except:
     print("No .env file found")
