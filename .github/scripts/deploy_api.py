@@ -73,6 +73,8 @@ def deploy_lambda(function_name, zip_path):
             "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID"),
             "SES_FROM_EMAIL": os.getenv("SES_FROM_EMAIL"),
             "APP_URL": os.getenv("APP_URL_STG") if env == "stg" else os.getenv("APP_URL_PRD"),
+            "USER_FRONTEND_ORIGIN": os.getenv("USER_FRONTEND_ORIGIN_STG") if env == "stg" else os.getenv("USER_FRONTEND_ORIGIN_PRD"),
+            "ADMIN_FRONTEND_ORIGIN": os.getenv("ADMIN_FRONTEND_ORIGIN_STG") if env == "stg" else os.getenv("ADMIN_FRONTEND_ORIGIN_PRD"),
         }.items() if v}},
     )
     print("Function configuration updated")
