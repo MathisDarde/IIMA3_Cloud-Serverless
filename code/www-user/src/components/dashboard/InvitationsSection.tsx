@@ -114,11 +114,7 @@ export function InvitationsSection({
       ) : (
         <div className="space-y-2">
           {invitations.map((invitation) => {
-            const inviterLabel =
-              invitation.invited_by_first_name ||
-              invitation.invited_by_last_name
-                ? `${invitation.invited_by_first_name ?? ""} ${invitation.invited_by_last_name ?? ""}`.trim()
-                : invitation.invited_by_email;
+            const inviterLabel = invitation.invited_by_sub;
 
             return (
               <div
