@@ -11,6 +11,7 @@ import projects from "./routes/projects";
 import { projectTasks, tasks } from "./routes/tasks";
 import assets from "./routes/assets";
 import backups from "./routes/backups";
+import stats from "./routes/stats";
 
 export const app = new Hono();
 
@@ -41,5 +42,6 @@ app.route("/projects", projectTasks);
 app.route("/tasks", tasks);
 app.route("/assets", assets);
 app.route("/backups", backups);
+app.route("/stats", stats);
 
 export const handler = handle(app);

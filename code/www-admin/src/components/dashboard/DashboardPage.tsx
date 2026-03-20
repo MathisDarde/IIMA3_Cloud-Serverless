@@ -1,811 +1,349 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { api } from "../../lib/api";
+import { ProfileSection } from "./ProfileSection";
+import { TeamsSection } from "./TeamsSection";
+import { InvitationsSection } from "./InvitationsSection";
+import type { Profile, Team } from "../../types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface AdminProfile {
-    name: string;
-    email: string;
-    avatar: string;
-}
+const BASE = import.meta.env.VITE_BASE_API_URL || "";
 
-interface Stats {
-    users: number;
-    teams: number;
-    projects: number;
-    tasks: number;
-}
+type Section = "dashboard" | "users" | "backups" | "teams" | "invitations" | "profile";
+type StatsData = { users: number; teams: number; projects: number; tasks: number };
+type ApiUser = { id: number; cognito_sub: string; role: string; created_at: string; email: string | null; first_name: string | null; last_name: string | null };
+type Backup = { id: number; s3_key: string; size_bytes: number | null; status: string; created_at: string };
 
-interface User {
-    id: string;
-    name: string;
-    email: string;
-    teams: number;
-    projects: number;
-    tasks: number;
-    joinedAt: string;
-    status: "active" | "inactive";
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_ADMIN: AdminProfile = {
-    name: "Admin Dylan",
-    email: "dylan@iim.fr",
-    avatar: "D",
-};
-
-const MOCK_STATS: Stats = {
-    users: 142,
-    teams: 38,
-    projects: 91,
-    tasks: 674,
-};
-
-const MOCK_USERS: User[] = [
-    {
-        id: "1",
-        name: "Alice Martin",
-        email: "alice@iim.fr",
-        teams: 3,
-        projects: 6,
-        tasks: 12,
-        joinedAt: "12 Jan 2025",
-        status: "active",
-    },
-    {
-        id: "2",
-        name: "Bob Dupont",
-        email: "bob@iim.fr",
-        teams: 1,
-        projects: 2,
-        tasks: 5,
-        joinedAt: "03 Feb 2025",
-        status: "active",
-    },
-    {
-        id: "3",
-        name: "Clara Petit",
-        email: "clara@iim.fr",
-        teams: 4,
-        projects: 9,
-        tasks: 28,
-        joinedAt: "19 Mar 2025",
-        status: "active",
-    },
-    {
-        id: "4",
-        name: "David Leroy",
-        email: "david@iim.fr",
-        teams: 2,
-        projects: 3,
-        tasks: 7,
-        joinedAt: "07 Apr 2025",
-        status: "inactive",
-    },
-    {
-        id: "5",
-        name: "Emma Bernard",
-        email: "emma@iim.fr",
-        teams: 5,
-        projects: 14,
-        tasks: 41,
-        joinedAt: "22 May 2025",
-        status: "active",
-    },
-    {
-        id: "6",
-        name: "Félix Moreau",
-        email: "felix@iim.fr",
-        teams: 1,
-        projects: 1,
-        tasks: 3,
-        joinedAt: "30 Jun 2025",
-        status: "inactive",
-    },
-    {
-        id: "7",
-        name: "Grace Simon",
-        email: "grace@iim.fr",
-        teams: 3,
-        projects: 7,
-        tasks: 19,
-        joinedAt: "15 Jul 2025",
-        status: "active",
-    },
-    {
-        id: "8",
-        name: "Hugo Laurent",
-        email: "hugo@iim.fr",
-        teams: 2,
-        projects: 4,
-        tasks: 9,
-        joinedAt: "01 Aug 2025",
-        status: "active",
-    },
-];
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconDashboard = () => (
-    <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-    </svg>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+  </svg>
 );
 const IconUsers = () => (
-    <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const IconBackup = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+    <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+  </svg>
+);
+const IconTeams = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const IconInvitations = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
+  </svg>
+);
+const IconProfile = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
 );
 const IconLogout = () => (
-    <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-        <polyline points="16 17 21 12 16 7" />
-        <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
 );
 const IconSearch = () => (
-    <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
 );
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({
-    label,
-    value,
-    index,
-}: {
-    label: string;
-    value: number;
-    index: number;
-}) => {
-    const icons = ["👥", "🏢", "📁", "✅"];
+const StatCard = ({ label, value, dark }: { label: string; value: number; dark: boolean }) => (
+  <div className={`rounded-2xl p-7 flex flex-col gap-3 border transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg cursor-default ${dark ? "bg-gray-900 text-white border-gray-800" : "bg-white text-gray-900 border-gray-200"}`}>
+    <div className="text-4xl font-extrabold font-serif leading-none">{value.toLocaleString()}</div>
+    <div className="text-xs font-semibold uppercase tracking-widest opacity-60">{label}</div>
+  </div>
+);
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type Props = { token: string; onLogout: () => void };
+
+export default function AdminDashboard({ token, onLogout }: Props) {
+  const [activeSection, setActiveSection] = useState<Section>("dashboard");
+  const [search, setSearch] = useState("");
+  const [invitationsReloadSignal, setInvitationsReloadSignal] = useState(0);
+  const [statsData, setStatsData] = useState<StatsData>({ users: 0, teams: 0, projects: 0, tasks: 0 });
+  const [apiUsers, setApiUsers] = useState<ApiUser[]>([]);
+  const [backups, setBackups] = useState<Backup[]>([]);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const usersRef = useRef<HTMLDivElement>(null);
+  const backupsRef = useRef<HTMLDivElement>(null);
+  const teamsRef = useRef<HTMLDivElement>(null);
+  const invitationsRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const sectionRefs: Record<Section, React.RefObject<HTMLDivElement | null>> = {
+    dashboard: dashboardRef,
+    users: usersRef,
+    backups: backupsRef,
+    teams: teamsRef,
+    invitations: invitationsRef,
+    profile: profileRef,
+  };
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${BASE}/stats`).then((r) => r.json()),
+      fetch(`${BASE}/users`).then((r) => r.json()),
+      fetch(`${BASE}/backups`).then((r) => r.json()),
+      api.auth.getProfile(token).catch(() => ({ profile: null })),
+      api.teams.list(token).catch(() => ({ teams: [] })),
+    ]).then(([s, u, b, p, t]) => {
+      setStatsData(s);
+      setApiUsers(u.users ?? []);
+      setBackups(b.backups ?? []);
+      if (p.profile) setProfile(p.profile);
+      setTeams(t.teams ?? []);
+    }).finally(() => setAdminLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scrollTo = (section: Section) => {
+    setActiveSection(section);
+    sectionRefs[section].current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const filteredUsers = apiUsers.filter((u) => {
+    const q = search.toLowerCase();
     return (
-        <div
-            style={{
-                background: index % 2 === 0 ? "#111" : "#fff",
-                color: index % 2 === 0 ? "#fff" : "#111",
-                border: "1px solid #e0e0e0",
-                borderRadius: "16px",
-                padding: "28px 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                transition: "transform 0.2s, box-shadow 0.2s",
-                cursor: "default",
-            }}
-            onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform =
-                    "translateY(-3px)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow =
-                    "0 8px 24px rgba(0,0,0,0.12)";
-            }}
-            onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform =
-                    "translateY(0)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-            }}
-        >
-            <span style={{ fontSize: "28px" }}>{icons[index]}</span>
-            <div
-                style={{
-                    fontSize: "42px",
-                    fontWeight: "800",
-                    fontFamily: "Georgia, serif",
-                    lineHeight: 1,
-                }}
-            >
-                {value.toLocaleString()}
-            </div>
-            <div
-                style={{
-                    fontSize: "13px",
-                    fontWeight: "500",
-                    opacity: 0.6,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                }}
-            >
-                {label}
-            </div>
+      String(u.id).includes(q) ||
+      u.role.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.first_name?.toLowerCase().includes(q) ||
+      u.last_name?.toLowerCase().includes(q)
+    );
+  });
+
+  const sidebarItems: { id: Section; icon: React.ReactNode; label: string }[] = [
+    { id: "dashboard", icon: <IconDashboard />, label: "Dashboard" },
+    { id: "users", icon: <IconUsers />, label: "Utilisateurs" },
+    { id: "backups", icon: <IconBackup />, label: "Sauvegardes" },
+    { id: "teams", icon: <IconTeams />, label: "Équipes" },
+    { id: "invitations", icon: <IconInvitations />, label: "Invitations" },
+    { id: "profile", icon: <IconProfile />, label: "Profil" },
+  ];
+
+  const SectionHeader = ({ label, sub }: { label: string; sub: string }) => (
+    <div className="mb-8">
+      <p className="text-xs text-gray-400 tracking-widest uppercase mb-1">{sub}</p>
+      <h1 className="text-3xl font-extrabold text-gray-900 font-serif">{label}</h1>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans">
+      {/* Sidebar */}
+      <aside className="bg-gray-900 flex flex-col items-center py-6 gap-2 shrink-0 sticky top-0 h-screen" style={{ width: "72px" }}>
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-lg text-gray-900 mb-4">A</div>
+
+        {sidebarItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => scrollTo(item.id)}
+            title={item.label}
+            className={`w-11 h-11 rounded-xl border-0 flex items-center justify-center cursor-pointer transition-all duration-150 ${
+              activeSection === item.id ? "bg-white text-gray-900" : "bg-transparent text-white/45 hover:bg-white/10"
+            }`}
+          >
+            {item.icon}
+          </button>
+        ))}
+
+        <div className="flex-1" />
+
+        <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm mb-2">
+          {profile?.first_name?.[0] ?? profile?.email?.[0]?.toUpperCase() ?? "A"}
         </div>
-    );
-};
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-export default function AdminDashboard() {
-    const [search, setSearch] = useState("");
-    const [activeSection, setActiveSection] = useState<"dashboard" | "users">(
-        "dashboard",
-    );
-
-    const dashboardRef = useRef<HTMLDivElement>(null);
-    const usersRef = useRef<HTMLDivElement>(null);
-
-    const scrollTo = (section: "dashboard" | "users") => {
-        setActiveSection(section);
-        const ref = section === "dashboard" ? dashboardRef : usersRef;
-        ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-
-    const filteredUsers = MOCK_USERS.filter(
-        (u) =>
-            u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase()),
-    );
-
-    return (
-        <div
-            style={{
-                display: "flex",
-                height: "100vh",
-                background: "#f5f5f5",
-                fontFamily: "'Helvetica Neue', sans-serif",
-            }}
+        <button
+          title="Déconnexion"
+          onClick={onLogout}
+          className="w-11 h-11 rounded-xl border-0 bg-transparent text-white/35 flex items-center justify-center cursor-pointer transition-all duration-150 hover:text-red-400 hover:bg-red-500/10"
         >
-            {/* ── Sidebar ── */}
-            <aside
-                style={{
-                    width: "72px",
-                    background: "#111",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    paddingTop: "24px",
-                    paddingBottom: "24px",
-                    gap: "8px",
-                    flexShrink: 0,
-                    position: "sticky",
-                    top: 0,
-                    height: "100vh",
-                }}
-            >
-                {/* Logo */}
-                <div
-                    style={{
-                        width: "40px",
-                        height: "40px",
-                        background: "#fff",
-                        borderRadius: "10px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "900",
-                        fontSize: "18px",
-                        color: "#111",
-                        marginBottom: "24px",
-                    }}
-                >
-                    A
-                </div>
+          <IconLogout />
+        </button>
+      </aside>
 
-                {[
-                    {
-                        id: "dashboard" as const,
-                        icon: <IconDashboard />,
-                        label: "Dashboard",
-                    },
-                    {
-                        id: "users" as const,
-                        icon: <IconUsers />,
-                        label: "Utilisateurs",
-                    },
-                ].map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => scrollTo(item.id)}
-                        title={item.label}
-                        style={{
-                            width: "44px",
-                            height: "44px",
-                            borderRadius: "12px",
-                            border: "none",
-                            background:
-                                activeSection === item.id
-                                    ? "#fff"
-                                    : "transparent",
-                            color:
-                                activeSection === item.id
-                                    ? "#111"
-                                    : "rgba(255,255,255,0.45)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                            if (activeSection !== item.id)
-                                (
-                                    e.currentTarget as HTMLButtonElement
-                                ).style.background = "rgba(255,255,255,0.08)";
-                        }}
-                        onMouseLeave={(e) => {
-                            if (activeSection !== item.id)
-                                (
-                                    e.currentTarget as HTMLButtonElement
-                                ).style.background = "transparent";
-                        }}
-                    >
-                        {item.icon}
-                    </button>
+      {/* Main */}
+      <main className="flex-1 overflow-y-auto px-12 py-10 flex flex-col gap-20">
+
+        {/* DASHBOARD */}
+        <section ref={dashboardRef}>
+          <div className="flex justify-between items-start mb-10">
+            <div>
+              <p className="text-xs text-gray-400 tracking-widest uppercase mb-1">Espace Administrateur</p>
+              <h1 className="text-3xl font-extrabold text-gray-900 font-serif">
+                Bonjour{profile?.first_name ? `, ${profile.first_name}` : ""} 👋
+              </h1>
+            </div>
+            <div className="bg-white rounded-xl px-4 py-2.5 border border-gray-200 flex flex-col items-end">
+              <span className="font-bold text-sm text-gray-900">
+                {profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : profile?.email ?? "Admin"}
+              </span>
+              <span className="text-xs text-gray-400">{profile?.email ?? ""}</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 tracking-widest uppercase mb-5">Statistiques globales</p>
+          {adminLoading ? (
+            <p className="text-gray-400 text-sm">Chargement…</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-4">
+              <StatCard label="Utilisateurs" value={statsData.users} dark={true} />
+              <StatCard label="Équipes" value={statsData.teams} dark={false} />
+              <StatCard label="Projets" value={statsData.projects} dark={true} />
+              <StatCard label="Tâches" value={statsData.tasks} dark={false} />
+            </div>
+          )}
+        </section>
+
+        {/* USERS */}
+        <section ref={usersRef}>
+          <div className="flex justify-between items-start mb-6">
+            <SectionHeader label="Utilisateurs" sub="Gestion" />
+            <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-3 border border-gray-200 w-72">
+              <span className="text-gray-400"><IconSearch /></span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher…"
+                className="border-none outline-none text-sm text-gray-900 bg-transparent w-full"
+              />
+              {search && <button onClick={() => setSearch("")} className="text-gray-400 text-lg leading-none bg-none border-none cursor-pointer p-0">×</button>}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">{filteredUsers.length} utilisateur{filteredUsers.length > 1 ? "s" : ""}</p>
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  {["ID", "Nom", "Email", "Rôle", "Inscription"].map((h) => (
+                    <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((u, i) => (
+                  <tr key={u.id} className={`transition-colors hover:bg-gray-50 ${i < filteredUsers.length - 1 ? "border-b border-gray-50" : ""}`}>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">#{u.id}</td>
+                    <td className="px-5 py-3.5 text-sm text-gray-900">
+                      {u.first_name || u.last_name
+                        ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 text-sm text-gray-500">{u.email ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.role === "admin" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-gray-400">
+                      {new Date(u.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
                 ))}
+                {filteredUsers.length === 0 && (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-300">Aucun utilisateur trouvé</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-                <div style={{ flex: 1 }} />
+        {/* BACKUPS */}
+        <section ref={backupsRef}>
+          <SectionHeader label="Sauvegardes" sub="Base de données" />
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  {["Fichier S3", "Taille", "Statut", "Date"].map((h) => (
+                    <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((b, i) => (
+                  <tr key={b.id} className={`transition-colors hover:bg-gray-50 ${i < backups.length - 1 ? "border-b border-gray-50" : ""}`}>
+                    <td className="px-5 py-3.5 text-xs text-gray-500 font-mono max-w-xs truncate">{b.s3_key}</td>
+                    <td className="px-5 py-3.5 text-sm text-gray-600">{formatBytes(b.size_bytes)}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${b.status === "success" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-gray-400">
+                      {new Date(b.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                  </tr>
+                ))}
+                {backups.length === 0 && (
+                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-300">Aucune sauvegarde</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-                <div
-                    style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "50%",
-                        background: "linear-gradient(135deg, #667eea, #764ba2)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#fff",
-                        fontWeight: "700",
-                        fontSize: "14px",
-                        marginBottom: "8px",
-                    }}
-                >
-                    {MOCK_ADMIN.avatar}
-                </div>
+        {/* TEAMS */}
+        <section ref={teamsRef}>
+          <SectionHeader label="Équipes" sub="Collaboration" />
+          <TeamsSection
+            token={token}
+            teams={teams}
+            onTeamCreated={(team) => setTeams((p) => [team, ...p])}
+            onInvitationCreated={() => setInvitationsReloadSignal((s) => s + 1)}
+            onUnauthorized={onLogout}
+          />
+        </section>
 
-                <button
-                    title="Déconnexion"
-                    onClick={() => alert("TODO: déconnexion")}
-                    style={{
-                        width: "44px",
-                        height: "44px",
-                        borderRadius: "12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "rgba(255,255,255,0.35)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.color =
-                            "#ff5555";
-                        (
-                            e.currentTarget as HTMLButtonElement
-                        ).style.background = "rgba(255,85,85,0.12)";
-                    }}
-                    onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.color =
-                            "rgba(255,255,255,0.35)";
-                        (
-                            e.currentTarget as HTMLButtonElement
-                        ).style.background = "transparent";
-                    }}
-                >
-                    <IconLogout />
-                </button>
-            </aside>
+        {/* INVITATIONS */}
+        <section ref={invitationsRef}>
+          <SectionHeader label="Invitations" sub="Équipes" />
+          <InvitationsSection
+            token={token}
+            highlightedInvitationId={null}
+            reloadSignal={invitationsReloadSignal}
+            onInvitationAccepted={async () => {
+              const data = await api.teams.list(token);
+              setTeams(data.teams);
+            }}
+            onUnauthorized={onLogout}
+          />
+        </section>
 
-            {/* ── Main scrollable ── */}
-            <main
-                style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    padding: "40px 48px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "80px",
-                }}
-            >
-                {/* ── SECTION DASHBOARD ── */}
-                <section ref={dashboardRef}>
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: "40px",
-                        }}
-                    >
-                        <div>
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: "13px",
-                                    color: "#999",
-                                    letterSpacing: "0.06em",
-                                    textTransform: "uppercase",
-                                    marginBottom: "6px",
-                                }}
-                            >
-                                Espace Administrateur
-                            </p>
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    fontSize: "32px",
-                                    fontWeight: "800",
-                                    color: "#111",
-                                    fontFamily: "Georgia, serif",
-                                }}
-                            >
-                                Bonjour, {MOCK_ADMIN.name.split(" ")[1]} 👋
-                            </h1>
-                        </div>
-                        <div
-                            style={{
-                                background: "#fff",
-                                borderRadius: "12px",
-                                padding: "10px 16px",
-                                border: "1px solid #e8e8e8",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "flex-end",
-                            }}
-                        >
-                            <span
-                                style={{
-                                    fontWeight: "700",
-                                    fontSize: "14px",
-                                    color: "#111",
-                                }}
-                            >
-                                {MOCK_ADMIN.name}
-                            </span>
-                            <span style={{ fontSize: "12px", color: "#999" }}>
-                                {MOCK_ADMIN.email}
-                            </span>
-                        </div>
-                    </div>
-
-                    <h2
-                        style={{
-                            margin: "0 0 20px",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: "#999",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                        }}
-                    >
-                        Statistiques globales
-                    </h2>
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(4, 1fr)",
-                            gap: "16px",
-                        }}
-                    >
-                        <StatCard
-                            label="Utilisateurs"
-                            value={MOCK_STATS.users}
-                            index={0}
-                        />
-                        <StatCard
-                            label="Équipes"
-                            value={MOCK_STATS.teams}
-                            index={1}
-                        />
-                        <StatCard
-                            label="Projets"
-                            value={MOCK_STATS.projects}
-                            index={2}
-                        />
-                        <StatCard
-                            label="Tâches"
-                            value={MOCK_STATS.tasks}
-                            index={3}
-                        />
-                    </div>
-                </section>
-
-                {/* ── SECTION UTILISATEURS ── */}
-                <section ref={usersRef} style={{ paddingBottom: "60px" }}>
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: "24px",
-                        }}
-                    >
-                        <div>
-                            <p
-                                style={{
-                                    margin: 0,
-                                    fontSize: "13px",
-                                    color: "#999",
-                                    letterSpacing: "0.06em",
-                                    textTransform: "uppercase",
-                                    marginBottom: "6px",
-                                }}
-                            >
-                                Gestion
-                            </p>
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    fontSize: "32px",
-                                    fontWeight: "800",
-                                    color: "#111",
-                                    fontFamily: "Georgia, serif",
-                                }}
-                            >
-                                Utilisateurs
-                            </h1>
-                        </div>
-
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "10px",
-                                background: "#fff",
-                                borderRadius: "12px",
-                                padding: "12px 16px",
-                                border: "1px solid #e8e8e8",
-                                width: "320px",
-                            }}
-                        >
-                            <span style={{ color: "#aaa" }}>
-                                <IconSearch />
-                            </span>
-                            <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Rechercher par nom ou email…"
-                                style={{
-                                    border: "none",
-                                    outline: "none",
-                                    fontSize: "14px",
-                                    color: "#111",
-                                    background: "transparent",
-                                    width: "100%",
-                                }}
-                            />
-                            {search && (
-                                <button
-                                    onClick={() => setSearch("")}
-                                    style={{
-                                        background: "none",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        color: "#aaa",
-                                        fontSize: "18px",
-                                        lineHeight: 1,
-                                        padding: 0,
-                                    }}
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    <p
-                        style={{
-                            margin: "0 0 16px",
-                            fontSize: "13px",
-                            color: "#999",
-                        }}
-                    >
-                        {filteredUsers.length} utilisateur
-                        {filteredUsers.length > 1 ? "s" : ""} trouvé
-                        {filteredUsers.length > 1 ? "s" : ""}
-                    </p>
-
-                    <div
-                        style={{
-                            background: "#fff",
-                            borderRadius: "16px",
-                            border: "1px solid #e8e8e8",
-                            overflow: "hidden",
-                        }}
-                    >
-                        <table
-                            style={{
-                                width: "100%",
-                                borderCollapse: "collapse",
-                            }}
-                        >
-                            <thead>
-                                <tr
-                                    style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                    }}
-                                >
-                                    {[
-                                        "Utilisateur",
-                                        "Email",
-                                        "Équipes",
-                                        "Projets",
-                                        "Tâches",
-                                        "Inscription",
-                                    ].map((h) => (
-                                        <th
-                                            key={h}
-                                            style={{
-                                                padding: "14px 20px",
-                                                textAlign: "left",
-                                                fontSize: "12px",
-                                                fontWeight: "600",
-                                                color: "#aaa",
-                                                letterSpacing: "0.06em",
-                                                textTransform: "uppercase",
-                                            }}
-                                        >
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredUsers.map((u, i) => (
-                                    <tr
-                                        key={u.id}
-                                        style={{
-                                            borderBottom:
-                                                i < filteredUsers.length - 1
-                                                    ? "1px solid #f5f5f5"
-                                                    : "none",
-                                            transition: "background 0.1s",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                            ((
-                                                e.currentTarget as HTMLTableRowElement
-                                            ).style.background = "#fafafa")
-                                        }
-                                        onMouseLeave={(e) =>
-                                            ((
-                                                e.currentTarget as HTMLTableRowElement
-                                            ).style.background = "transparent")
-                                        }
-                                    >
-                                        <td style={{ padding: "14px 20px" }}>
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "10px",
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        width: "32px",
-                                                        height: "32px",
-                                                        borderRadius: "50%",
-                                                        background: `hsl(${u.id.charCodeAt(0) * 40}, 60%, 88%)`,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent:
-                                                            "center",
-                                                        fontSize: "13px",
-                                                        fontWeight: "700",
-                                                        color: "#444",
-                                                        flexShrink: 0,
-                                                    }}
-                                                >
-                                                    {u.name[0]}
-                                                </div>
-                                                <span
-                                                    style={{
-                                                        fontWeight: "600",
-                                                        fontSize: "14px",
-                                                        color: "#111",
-                                                    }}
-                                                >
-                                                    {u.name}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td
-                                            style={{
-                                                padding: "14px 20px",
-                                                fontSize: "14px",
-                                                color: "#666",
-                                            }}
-                                        >
-                                            {u.email}
-                                        </td>
-                                        <td
-                                            style={{
-                                                padding: "14px 20px",
-                                                fontSize: "14px",
-                                                color: "#666",
-                                            }}
-                                        >
-                                            {u.teams}
-                                        </td>
-                                        <td
-                                            style={{
-                                                padding: "14px 20px",
-                                                fontSize: "14px",
-                                                color: "#666",
-                                            }}
-                                        >
-                                            {u.projects}
-                                        </td>
-                                        <td
-                                            style={{
-                                                padding: "14px 20px",
-                                                fontSize: "14px",
-                                                color: "#666",
-                                            }}
-                                        >
-                                            {u.tasks}
-                                        </td>
-                                        <td
-                                            style={{
-                                                padding: "14px 20px",
-                                                fontSize: "13px",
-                                                color: "#999",
-                                            }}
-                                        >
-                                            {u.joinedAt}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredUsers.length === 0 && (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            style={{
-                                                padding: "40px",
-                                                textAlign: "center",
-                                                color: "#bbb",
-                                                fontSize: "14px",
-                                            }}
-                                        >
-                                            Aucun utilisateur trouvé
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </main>
-        </div>
-    );
+        {/* PROFILE */}
+        <section ref={profileRef} className="pb-16">
+          <SectionHeader label="Profil" sub="Mon compte" />
+          <ProfileSection
+            profile={profile}
+            token={token}
+            onUpdate={setProfile}
+            onUnauthorized={onLogout}
+          />
+        </section>
+      </main>
+    </div>
+  );
 }
