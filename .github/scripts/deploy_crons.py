@@ -30,17 +30,27 @@ except:
 function_name = os.getenv("LAMBDA_CRON_STG" if env == "stg" else "LAMBDA_CRON_PRD")
 rule_name = f"{function_name}-hourly-backup"
 target_id = "db-hourly-backup"
+handler_name = "dist/index.handler"
 
 
 def build(path):
     subprocess.run(["npm", "install"], cwd=path, check=True)
     subprocess.run(["npm", "run", "build"], cwd=path, check=True)
+    built_entry = os.path.join(path, "dist", "index.js")
+    if not os.path.exists(built_entry):
+        raise RuntimeError(f"Build output not found: {built_entry}")
 
 
 def make_zip(path, zip_path):
+    os.makedirs(os.path.dirname(zip_path), exist_ok=True)
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for folder in ["dist", "node_modules"]:
             folder_path = os.path.join(path, folder)
+            if not os.path.isdir(folder_path):
+                raise RuntimeError(f"Missing folder for packaging: {folder_path}")
             for root, dirs, files in os.walk(folder_path):
                 for file in files:
                     full_path = os.path.join(root, file)
@@ -63,7 +73,7 @@ def deploy_lambda(function_name, zip_path):
     print(f"Function code updated: {function_name}")
     client.update_function_configuration(
         FunctionName=function_name,
-        Handler="dist/index.handler",
+        Handler=handler_name,
         Environment={"Variables": {k: v for k, v in {
             "DB_HOST": os.getenv("DB_HOST"),
             "DB_PORT": os.getenv("DB_PORT", "5432"),
@@ -76,7 +86,7 @@ def deploy_lambda(function_name, zip_path):
             "AWS_REGION": config.get("AWS_REGION", "eu-west-3"),
         }.items() if v}},
     )
-    print("Function configuration updated")
+    print(f"Function configuration updated (handler={handler_name})")
 
 
 def ensure_hourly_schedule(function_name):
@@ -124,7 +134,7 @@ def ensure_hourly_schedule(function_name):
 
 
 try:
-    zip_path = f"/tmp/cron-{env}.zip"
+    zip_path = os.path.join(project_path, "artifacts", f"cron-{env}.zip")
     build(project_path)
     make_zip(project_path, zip_path)
     deploy_lambda(function_name, zip_path)
