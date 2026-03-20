@@ -43,6 +43,20 @@ export type TeamInvitation = {
   created_at: string;
   responded_at: string | null;
   invited_by_sub: string;
+  invited_by_first_name: string | null;
+  invited_by_last_name: string | null;
+  invited_by_email: string | null;
+};
+
+export type Asset = {
+  id: number;
+  task_id: number;
+  filename: string;
+  s3_key: string;
+  size_bytes: number | null;
+  content_type: string | null;
+  created_at: string;
+  download_url: string;
 };
 
 export type Project = {

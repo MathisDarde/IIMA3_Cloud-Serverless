@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import type { Task, TeamMember } from "../../types";
+import { AssetsSection } from "./AssetsSection";
 
 type Props = {
     token: string;
@@ -399,6 +400,11 @@ export function TasksSection({
                                     </button>
                                 </div>
                             </div>
+                            <AssetsSection
+                                token={token}
+                                taskId={selected.id}
+                                onUnauthorized={onUnauthorized}
+                            />
                         </>
                     ) : (
                         <form onSubmit={handleUpdate} className="space-y-3">

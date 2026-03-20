@@ -72,6 +72,7 @@ def deploy_lambda(function_name, zip_path):
             "COGNITO_USER_POOL_ID": os.getenv("COGNITO_USER_POOL_ID"),
             "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID"),
             "SES_FROM_EMAIL": config.get("SES_FROM_EMAIL") or os.getenv("SES_FROM_EMAIL"),
+            "S3_BUCKET_ASSETS": config.get("S3_BUCKET_ASSETS"),
             "APP_URL": config["URL_USER"],
             "USER_FRONTEND_ORIGIN": config["URL_USER"],
             "ADMIN_FRONTEND_ORIGIN": config["URL_ADMIN"],

@@ -26,7 +26,7 @@ export function InvitationsSection({
     setLoading(true);
     setError("");
     try {
-      const data = await api.teams.listMyInvitations(token);
+      const data = await api.invitations.list(token);
       setInvitations(data.invitations);
     } catch (err: unknown) {
       if (isUnauthorizedError(err)) {
@@ -54,7 +54,7 @@ export function InvitationsSection({
     setBusyId(invitationId);
     setError("");
     try {
-      await api.teams.acceptInvitation(token, invitationId);
+      await api.invitations.accept(token, invitationId);
       await loadInvitations();
       await onInvitationAccepted();
       clearInvitationQueryParam(invitationId);
@@ -73,7 +73,7 @@ export function InvitationsSection({
     setBusyId(invitationId);
     setError("");
     try {
-      await api.teams.refuseInvitation(token, invitationId);
+      await api.invitations.reject(token, invitationId);
       await loadInvitations();
       clearInvitationQueryParam(invitationId);
     } catch (err: unknown) {
@@ -114,7 +114,12 @@ export function InvitationsSection({
       ) : (
         <div className="space-y-2">
           {invitations.map((invitation) => {
-            const inviterLabel = invitation.invited_by_sub;
+            const inviterLabel =
+              [invitation.invited_by_first_name, invitation.invited_by_last_name]
+                .filter(Boolean)
+                .join(" ") ||
+              invitation.invited_by_email ||
+              invitation.invited_by_sub;
 
             return (
               <div

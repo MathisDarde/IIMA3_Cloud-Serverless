@@ -38,7 +38,7 @@ export const api = {
       first_name?: string;
       last_name?: string;
     }) =>
-      request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+      request("/users", { method: "POST", body: JSON.stringify(body) }),
 
     login: (body: { email: string; password: string }) =>
       request<{
@@ -60,14 +60,14 @@ export const api = {
       }),
 
     getProfile: (token: string) =>
-      request<{ profile: any }>("/auth/profile", {}, token),
+      request<{ profile: any }>("/me", {}, token),
 
     updateProfile: (
       token: string,
       body: { first_name?: string; last_name?: string },
     ) =>
       request<{ profile: any }>(
-        "/auth/profile",
+        "/me",
         {
           method: "PATCH",
           body: JSON.stringify(body),
@@ -89,6 +89,9 @@ export const api = {
         token,
       ),
 
+    get: (token: string, teamId: number) =>
+      request<{ team: any }>(`/teams/${teamId}`, {}, token),
+
     getMembers: (token: string, teamId: number) =>
       request<{ members: any[] }>(`/teams/${teamId}/members`, {}, token),
 
@@ -101,39 +104,38 @@ export const api = {
         },
         token,
       ),
+  },
 
-    listMyInvitations: (token: string) =>
-      request<{ invitations: any[] }>("/teams/invitations/me", {}, token),
+  invitations: {
+    list: (token: string) =>
+      request<{ invitations: any[] }>("/invitations", {}, token),
 
-    acceptInvitation: (token: string, invitationId: number) =>
+    accept: (token: string, invitationId: number) =>
       request<{ message: string }>(
-        `/teams/invitations/${invitationId}/accept`,
-        {
-          method: "PATCH",
-        },
+        `/invitations/${invitationId}/accept`,
+        { method: "POST" },
         token,
       ),
 
-    refuseInvitation: (token: string, invitationId: number) =>
+    reject: (token: string, invitationId: number) =>
       request<{ message: string }>(
-        `/teams/invitations/${invitationId}/refuse`,
-        {
-          method: "PATCH",
-        },
+        `/invitations/${invitationId}/reject`,
+        { method: "POST" },
         token,
       ),
   },
 
   projects: {
     list: (token: string, teamId: number) =>
-      request<{ projects: any[] }>(`/projects?team_id=${teamId}`, {}, token),
+      request<{ projects: any[] }>(`/teams/${teamId}/projects`, {}, token),
 
     create: (
       token: string,
-      body: { team_id: number; name: string; description?: string },
+      teamId: number,
+      body: { name: string; description?: string },
     ) =>
       request<{ project: any }>(
-        "/projects",
+        `/teams/${teamId}/projects`,
         {
           method: "POST",
           body: JSON.stringify(body),
@@ -165,43 +167,62 @@ export const api = {
         token,
       ),
   },
-  
+
   tasks: {
-  list: (token: string, projectId: number) =>
-    request<{ tasks: any[] }>(`/projects/${projectId}/tasks`, {}, token),
+    list: (token: string, projectId: number) =>
+      request<{ tasks: any[] }>(`/projects/${projectId}/tasks`, {}, token),
 
-  create: (token: string, projectId: number, body: { name: string; description?: string }) =>
-    request<{ task: any }>(
-      `/projects/${projectId}/tasks`,
-      { method: "POST", body: JSON.stringify(body) },
-      token,
-    ),
+    create: (token: string, projectId: number, body: { name: string; description?: string }) =>
+      request<{ task: any }>(
+        `/projects/${projectId}/tasks`,
+        { method: "POST", body: JSON.stringify(body) },
+        token,
+      ),
 
-  get: (token: string, taskId: number) =>
-    request<{ task: any }>(`/tasks/${taskId}`, {}, token),
+    get: (token: string, taskId: number) =>
+      request<{ task: any }>(`/tasks/${taskId}`, {}, token),
 
-  update: (token: string, taskId: number, body: { name?: string; description?: string }) =>
-    request<{ task: any }>(
-      `/tasks/${taskId}`,
-      { method: "PATCH", body: JSON.stringify(body) },
-      token,
-    ),
+    update: (token: string, taskId: number, body: { name?: string; description?: string }) =>
+      request<{ task: any }>(
+        `/tasks/${taskId}`,
+        { method: "PATCH", body: JSON.stringify(body) },
+        token,
+      ),
 
-  delete: (token: string, taskId: number) =>
-    request<{ message: string }>(`/tasks/${taskId}`, { method: "DELETE" }, token),
+    delete: (token: string, taskId: number) =>
+      request<{ message: string }>(`/tasks/${taskId}`, { method: "DELETE" }, token),
 
-  assign: (token: string, taskId: number, cognito_sub: string | null) =>
-    request<{ task: any }>(
-      `/tasks/${taskId}/assign`,
-      { method: "PATCH", body: JSON.stringify({ cognito_sub }) },
-      token,
-    ),
+    assign: (token: string, taskId: number, cognito_sub: string | null) =>
+      request<{ task: any }>(
+        `/tasks/${taskId}/assign`,
+        { method: "PATCH", body: JSON.stringify({ cognito_sub }) },
+        token,
+      ),
 
-  updateStatus: (token: string, taskId: number, status: string) =>
-    request<{ task: any }>(
-      `/tasks/${taskId}/status`,
-      { method: "PATCH", body: JSON.stringify({ status }) },
-      token,
-    ),
-},
+    updateStatus: (token: string, taskId: number, status: string) =>
+      request<{ task: any }>(
+        `/tasks/${taskId}/status`,
+        { method: "PATCH", body: JSON.stringify({ status }) },
+        token,
+      ),
+  },
+
+  assets: {
+    list: (token: string, taskId: number) =>
+      request<{ assets: any[] }>(`/tasks/${taskId}/assets`, {}, token),
+
+    upload: (
+      token: string,
+      taskId: number,
+      body: { filename: string; content_type: string; size_bytes?: number },
+    ) =>
+      request<{ asset: any; presign_url: string; presign_fields: Record<string, string> }>(
+        `/tasks/${taskId}/assets`,
+        { method: "POST", body: JSON.stringify(body) },
+        token,
+      ),
+
+    delete: (token: string, id: number) =>
+      request<{ message: string }>(`/assets/${id}`, { method: "DELETE" }, token),
+  },
 };

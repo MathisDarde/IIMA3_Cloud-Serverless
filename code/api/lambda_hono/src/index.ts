@@ -4,9 +4,12 @@ import { handle } from "hono/aws-lambda";
 import { cors } from "hono/cors";
 import users from "./routes/users";
 import auth from "./routes/auth";
+import me from "./routes/me";
 import teams from "./routes/teams";
+import invitations from "./routes/invitations";
 import projects from "./routes/projects";
-import tasks from "./routes/tasks";
+import { projectTasks, tasks } from "./routes/tasks";
+import assets from "./routes/assets";
 
 export const app = new Hono();
 
@@ -29,8 +32,12 @@ app.use(
 app.get("/", (c) => c.json({ message: "API is running" }));
 app.route("/users", users);
 app.route("/auth", auth);
+app.route("/me", me);
 app.route("/teams", teams);
+app.route("/invitations", invitations);
 app.route("/projects", projects);
-app.route("/projects", tasks);
+app.route("/projects", projectTasks);
+app.route("/tasks", tasks);
+app.route("/assets", assets);
 
 export const handler = handle(app);

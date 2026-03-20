@@ -67,6 +67,27 @@ async function ensureTeamsSchema() {
   teamsSchemaReady = true;
 }
 
+let projectsSchemaReady = false;
+
+async function ensureProjectsSchema() {
+  if (projectsSchemaReady) return;
+  await db.query(
+    `CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY,
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(50) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+  );
+  await db.query(
+    "CREATE INDEX IF NOT EXISTS idx_projects_team_id ON projects(team_id)",
+  );
+  projectsSchemaReady = true;
+}
+
 function getAccessTokenFromHeader(authorizationHeader: string | undefined) {
   if (!authorizationHeader?.startsWith("Bearer ")) return null;
   return authorizationHeader.slice("Bearer ".length).trim();
@@ -132,8 +153,7 @@ async function requireCurrentUser(c: any) {
     return {
       error: c.json(
         {
-          error:
-            "Unable to use teams service. Check database connectivity/migrations.",
+          error: "Unable to use teams service. Check database connectivity/migrations.",
           details:
             process.env.NODE_ENV === "production"
               ? undefined
@@ -146,6 +166,7 @@ async function requireCurrentUser(c: any) {
   }
 }
 
+// POST /teams
 teams.post("/", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
@@ -176,6 +197,7 @@ teams.post("/", async (c) => {
   return c.json({ team }, 201);
 });
 
+// GET /teams
 teams.get("/", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
@@ -199,11 +221,48 @@ teams.get("/", async (c) => {
   return c.json({ teams: result.rows });
 });
 
-teams.get("/:id/members", async (c) => {
+// GET /teams/:teamId
+teams.get("/:teamId", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
 
-  const teamId = Number(c.req.param("id"));
+  const teamId = Number(c.req.param("teamId"));
+  if (!Number.isFinite(teamId)) return c.json({ error: "Invalid team id" }, 400);
+
+  const membership = await db.query(
+    "SELECT tm.role FROM team_members tm WHERE tm.team_id = $1 AND tm.user_id = $2",
+    [teamId, currentUser.userId],
+  );
+
+  if (!membership.rowCount) {
+    return c.json({ error: "Forbidden: you are not a member of this team" }, 403);
+  }
+
+  const result = await db.query(
+    `SELECT t.id,
+            t.name,
+            t.created_at,
+            t.created_by,
+            $2::text AS role,
+            COUNT(tm.user_id)::INT AS member_count
+     FROM teams t
+     LEFT JOIN team_members tm ON tm.team_id = t.id
+     WHERE t.id = $1
+     GROUP BY t.id, t.name, t.created_at, t.created_by`,
+    [teamId, membership.rows[0].role],
+  );
+
+  if (!result.rowCount) return c.json({ error: "Team not found" }, 404);
+
+  return c.json({ team: result.rows[0] });
+});
+
+// GET /teams/:teamId/members
+teams.get("/:teamId/members", async (c) => {
+  const { error, currentUser } = await requireCurrentUser(c);
+  if (error || !currentUser) return error;
+
+  const teamId = Number(c.req.param("teamId"));
   if (!Number.isFinite(teamId)) {
     return c.json({ error: "Invalid team id" }, 400);
   }
@@ -252,11 +311,12 @@ teams.get("/:id/members", async (c) => {
   return c.json({ members: membersWithProfile });
 });
 
-teams.post("/:id/invitations", async (c) => {
+// POST /teams/:teamId/invitations
+teams.post("/:teamId/invitations", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
 
-  const teamId = Number(c.req.param("id"));
+  const teamId = Number(c.req.param("teamId"));
   if (!Number.isFinite(teamId)) {
     return c.json({ error: "Invalid team id" }, 400);
   }
@@ -289,15 +349,12 @@ teams.post("/:id/invitations", async (c) => {
 
   const teamName = String(teamExists.rows[0].name);
 
-  // inviteeUserId will be resolved when the invitation is accepted
-  const inviteeUserId = null;
-
   try {
     const invitation = await db.query(
       `INSERT INTO team_invitations (team_id, invited_by_user_id, invitee_email, invitee_user_id, status)
        VALUES ($1, $2, $3, $4, 'pending')
        RETURNING id, team_id, invited_by_user_id, invitee_email, invitee_user_id, status, created_at`,
-      [teamId, currentUser.userId, inviteeEmail, inviteeUserId],
+      [teamId, currentUser.userId, inviteeEmail, null],
     );
 
     let warning: string | undefined;
@@ -322,120 +379,65 @@ teams.post("/:id/invitations", async (c) => {
         409,
       );
     }
-
     throw insertError;
   }
 });
 
-teams.get("/invitations/me", async (c) => {
+// POST /teams/:teamId/projects
+teams.post("/:teamId/projects", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
 
-  const invitations = await db.query(
-    `SELECT ti.id,
-            ti.team_id,
-            t.name AS team_name,
-            ti.invitee_email,
-            ti.status,
-            ti.created_at,
-            ti.responded_at,
-            inviter.cognito_sub AS invited_by_sub
-     FROM team_invitations ti
-     JOIN teams t ON t.id = ti.team_id
-     JOIN users inviter ON inviter.id = ti.invited_by_user_id
-     WHERE LOWER(ti.invitee_email) = LOWER($1)
-     ORDER BY ti.created_at DESC`,
-    [currentUser.email],
+  const teamId = Number(c.req.param("teamId"));
+  if (!Number.isFinite(teamId)) return c.json({ error: "Invalid team id" }, 400);
+
+  const isMember = await db.query(
+    "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2",
+    [teamId, currentUser.userId],
+  );
+  if (!isMember.rowCount) return c.json({ error: "Forbidden: you are not a member of this team" }, 403);
+
+  await ensureProjectsSchema();
+
+  const { name, description } = await c.req.json();
+  const normalizedName = String(name ?? "").trim();
+  if (!normalizedName) return c.json({ error: "Project name is required" }, 400);
+
+  const result = await db.query(
+    `INSERT INTO projects (team_id, name, description)
+     VALUES ($1, $2, $3)
+     RETURNING id, team_id, name, description, status, created_at, updated_at`,
+    [teamId, normalizedName, description ?? null],
   );
 
-  return c.json({ invitations: invitations.rows });
+  return c.json({ project: result.rows[0] }, 201);
 });
 
-teams.patch("/invitations/:invitationId/accept", async (c) => {
+// GET /teams/:teamId/projects
+teams.get("/:teamId/projects", async (c) => {
   const { error, currentUser } = await requireCurrentUser(c);
   if (error || !currentUser) return error;
 
-  const invitationId = Number(c.req.param("invitationId"));
-  if (!Number.isFinite(invitationId)) {
-    return c.json({ error: "Invalid invitation id" }, 400);
-  }
+  const teamId = Number(c.req.param("teamId"));
+  if (!Number.isFinite(teamId)) return c.json({ error: "Invalid team id" }, 400);
 
-  const invitation = await db.query(
-    `SELECT id, team_id, status, invitee_email
-     FROM team_invitations
-     WHERE id = $1`,
-    [invitationId],
+  const isMember = await db.query(
+    "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2",
+    [teamId, currentUser.userId],
+  );
+  if (!isMember.rowCount) return c.json({ error: "Forbidden: you are not a member of this team" }, 403);
+
+  await ensureProjectsSchema();
+
+  const result = await db.query(
+    `SELECT id, team_id, name, description, status, created_at, updated_at
+     FROM projects
+     WHERE team_id = $1
+     ORDER BY created_at DESC`,
+    [teamId],
   );
 
-  if (!invitation.rowCount) {
-    return c.json({ error: "Invitation not found" }, 404);
-  }
-
-  const invite = invitation.rows[0];
-  if (String(invite.status) !== "pending") {
-    return c.json({ error: "Invitation is no longer pending" }, 409);
-  }
-
-  if (
-    String(invite.invitee_email).toLowerCase() !==
-    currentUser.email.toLowerCase()
-  ) {
-    return c.json({ error: "Forbidden: this invitation is not for you" }, 403);
-  }
-
-  await db.query("BEGIN");
-  try {
-    await db.query(
-      `UPDATE team_invitations
-       SET status = 'accepted',
-           invitee_user_id = $1,
-           responded_at = NOW()
-       WHERE id = $2`,
-      [currentUser.userId, invitationId],
-    );
-
-    await db.query(
-      `INSERT INTO team_members (team_id, user_id, role)
-       VALUES ($1, $2, 'member')
-       ON CONFLICT (team_id, user_id) DO NOTHING`,
-      [invite.team_id, currentUser.userId],
-    );
-
-    await db.query("COMMIT");
-  } catch (acceptError) {
-    await db.query("ROLLBACK");
-    throw acceptError;
-  }
-
-  return c.json({ message: "Invitation accepted" });
-});
-
-teams.patch("/invitations/:invitationId/refuse", async (c) => {
-  const { error, currentUser } = await requireCurrentUser(c);
-  if (error || !currentUser) return error;
-
-  const invitationId = Number(c.req.param("invitationId"));
-  if (!Number.isFinite(invitationId)) {
-    return c.json({ error: "Invalid invitation id" }, 400);
-  }
-
-  const updated = await db.query(
-    `UPDATE team_invitations
-     SET status = 'declined',
-         invitee_user_id = $1,
-         responded_at = NOW()
-     WHERE id = $2
-       AND status = 'pending'
-       AND LOWER(invitee_email) = LOWER($3)
-     RETURNING id`,
-    [currentUser.userId, invitationId, currentUser.email],
-  );
-
-  if (!updated.rowCount) {
-    return c.json({ error: "Invitation not found or not pending" }, 404);
-  }
-
-  return c.json({ message: "Invitation declined" });
+  return c.json({ projects: result.rows });
 });
 
 export default teams;
