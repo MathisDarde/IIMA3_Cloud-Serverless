@@ -57,7 +57,11 @@ function sqlValue(value: unknown): string {
   return quoteLiteral(String(value));
 }
 
-async function buildSqlDataDump(): Promise<{ sql: string; tableCount: number; rowCount: number }> {
+async function buildSqlDataDump(): Promise<{
+  sql: string;
+  tableCount: number;
+  rowCount: number;
+}> {
   const tableResult = await db.query<TableDef>(
     `
       SELECT table_schema, table_name
@@ -106,12 +110,16 @@ async function buildSqlDataDump(): Promise<{ sql: string; tableCount: number; ro
     const columnSql = columns.map(quoteIdent).join(", ");
     const valuesSql = dataResult.rows
       .map((row) => {
-        const rowValues = columns.map((columnName) => sqlValue(row[columnName]));
+        const rowValues = columns.map((columnName) =>
+          sqlValue(row[columnName]),
+        );
         return `(${rowValues.join(", ")})`;
       })
       .join(",\n");
 
-    lines.push(`INSERT INTO ${qualifiedName} (${columnSql}) VALUES\n${valuesSql};`);
+    lines.push(
+      `INSERT INTO ${qualifiedName} (${columnSql}) VALUES\n${valuesSql};`,
+    );
   }
 
   lines.push("COMMIT;");
@@ -166,8 +174,10 @@ export const handler: ScheduledHandler = async () => {
 };
 
 if (require.main === module) {
-  Promise.resolve(handler({} as never, {} as never, () => undefined)).catch((error: unknown) => {
-    console.error(error);
-    process.exit(1);
-  });
+  Promise.resolve(handler({} as never, {} as never, () => undefined)).catch(
+    (error: unknown) => {
+      console.error(error);
+      process.exit(1);
+    },
+  );
 }
