@@ -54,3 +54,14 @@ export type Project = {
   created_at: string;
   updated_at: string;
 };
+
+export type Task = {
+  id: number;
+  project_id: number;
+  name: string;
+  description: string | null;
+  status: "todo" | "in_progress" | "done" | string;
+  assigned_to: string | null;
+  created_at: string;
+  updated_at: string;
+};

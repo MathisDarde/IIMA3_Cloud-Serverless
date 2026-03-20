@@ -6,6 +6,7 @@ import users from "./routes/users";
 import auth from "./routes/auth";
 import teams from "./routes/teams";
 import projects from "./routes/projects";
+import tasks from "./routes/tasks";
 
 export const app = new Hono();
 
@@ -37,5 +38,6 @@ app.route("/users", users);
 app.route("/auth", auth);
 app.route("/teams", teams);
 app.route("/projects", projects);
+app.route("/projects", tasks);
 
 export const handler = handle(app);

@@ -165,4 +165,43 @@ export const api = {
         token,
       ),
   },
+  
+  tasks: {
+  list: (token: string, projectId: number) =>
+    request<{ tasks: any[] }>(`/projects/${projectId}/tasks`, {}, token),
+
+  create: (token: string, projectId: number, body: { name: string; description?: string }) =>
+    request<{ task: any }>(
+      `/projects/${projectId}/tasks`,
+      { method: "POST", body: JSON.stringify(body) },
+      token,
+    ),
+
+  get: (token: string, taskId: number) =>
+    request<{ task: any }>(`/tasks/${taskId}`, {}, token),
+
+  update: (token: string, taskId: number, body: { name?: string; description?: string }) =>
+    request<{ task: any }>(
+      `/tasks/${taskId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      token,
+    ),
+
+  delete: (token: string, taskId: number) =>
+    request<{ message: string }>(`/tasks/${taskId}`, { method: "DELETE" }, token),
+
+  assign: (token: string, taskId: number, cognito_sub: string | null) =>
+    request<{ task: any }>(
+      `/tasks/${taskId}/assign`,
+      { method: "PATCH", body: JSON.stringify({ cognito_sub }) },
+      token,
+    ),
+
+  updateStatus: (token: string, taskId: number, status: string) =>
+    request<{ task: any }>(
+      `/tasks/${taskId}/status`,
+      { method: "PATCH", body: JSON.stringify({ status }) },
+      token,
+    ),
+},
 };

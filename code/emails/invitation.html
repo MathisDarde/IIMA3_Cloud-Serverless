@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Invitation à rejoindre une équipe</title>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap");
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                background-color: #f0efeb;
+                font-family: "DM Sans", Helvetica, sans-serif;
+                padding: 48px 16px;
+                color: #1a1a1a;
+            }
+
+            .wrapper {
+                max-width: 560px;
+                margin: 0 auto;
+            }
+
+            /* ── Header logo ── */
+            .header {
+                text-align: center;
+                margin-bottom: 32px;
+            }
+
+            .logo {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 48px;
+                height: 48px;
+                background: #1a1a1a;
+                border-radius: 12px;
+                color: #fff;
+                font-weight: 800;
+                font-size: 20px;
+                font-family: "DM Serif Display", Georgia, serif;
+                letter-spacing: -1px;
+            }
+
+            .card {
+                background: #ffffff;
+                border-radius: 20px;
+                overflow: hidden;
+                box-shadow: 0 2px 24px rgba(0, 0, 0, 0.07);
+            }
+
+            /* ── Banner ── */
+            .banner {
+                background: #1a1a1a;
+                padding: 40px 40px 36px;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .banner::before {
+                content: "";
+                position: absolute;
+                top: -40px;
+                right: -40px;
+                width: 180px;
+                height: 180px;
+                border-radius: 50%;
+                border: 32px solid rgba(255, 255, 255, 0.05);
+            }
+
+            .banner::after {
+                content: "";
+                position: absolute;
+                bottom: -60px;
+                left: 30%;
+                width: 240px;
+                height: 240px;
+                border-radius: 50%;
+                border: 40px solid rgba(255, 255, 255, 0.03);
+            }
+
+            .banner-tag {
+                display: inline-block;
+                background: rgba(255, 255, 255, 0.12);
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                padding: 5px 12px;
+                border-radius: 20px;
+                margin-bottom: 20px;
+            }
+
+            .banner-title {
+                font-family: "DM Serif Display", Georgia, serif;
+                font-size: 34px;
+                color: #ffffff;
+                line-height: 1.1;
+                position: relative;
+                z-index: 1;
+            }
+
+            .banner-title span {
+                color: #a8f0c6;
+            }
+
+            /* ── Body ── */
+            .body {
+                padding: 36px 40px;
+            }
+
+            .greeting {
+                font-size: 16px;
+                color: #444;
+                line-height: 1.6;
+                margin-bottom: 24px;
+            }
+
+            .greeting strong {
+                color: #1a1a1a;
+                font-weight: 600;
+            }
+
+            /* ── Team card ── */
+            .team-block {
+                background: #f7f6f2;
+                border-radius: 14px;
+                padding: 20px 24px;
+                margin-bottom: 28px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                border: 1px solid #ececec;
+            }
+
+            .team-avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: #1a1a1a;
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 20px;
+                font-family: "DM Serif Display", Georgia, serif;
+                flex-shrink: 0;
+            }
+
+
+            .team-label {
+                font-size: 11px;
+                color: #aaa;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            .team-name {
+                font-size: 18px;
+                font-weight: 700;
+                color: #1a1a1a;
+            }
+
+            .invited-by {
+                font-size: 13px;
+                color: #888;
+                margin-top: 4px;
+            }
+
+            .invited-by strong {
+                color: #555;
+            }
+
+            /* ── CTA Buttons ── */
+            .cta-row {
+                display: flex;
+                gap: 12px;
+                margin-bottom: 32px;
+            }
+
+            .btn {
+                flex: 1;
+                display: block;
+                text-align: center;
+                padding: 14px 20px;
+                border-radius: 12px;
+                font-size: 15px;
+                font-weight: 600;
+                text-decoration: none;
+                font-family: "DM Sans", Helvetica, sans-serif;
+            }
+
+            .btn-accept {
+                background: #1a1a1a;
+                color: #ffffff;
+            }
+
+            .btn-decline {
+                background: #f0efeb;
+                color: #888;
+                border: 1px solid #e0e0e0;
+            }
+
+            /* ── Divider ── */
+            .divider {
+                border: none;
+                border-top: 1px solid #f0f0f0;
+                margin: 0 0 24px;
+            }
+
+            /* ── Info note ── */
+            .note {
+                font-size: 13px;
+                color: #aaa;
+                line-height: 1.6;
+            }
+
+            .note a {
+                color: #888;
+            }
+
+            /* ── Footer ── */
+            .footer {
+                text-align: center;
+                margin-top: 28px;
+                font-size: 12px;
+                color: #bbb;
+                line-height: 1.8;
+            }
+
+            .footer a {
+                color: #aaa;
+                text-decoration: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <!-- Logo -->
+            <div class="header">
+                <div class="logo">P</div>
+            </div>
+
+            <!-- Card -->
+            <div class="card">
+                <!-- Banner -->
+                <div class="banner">
+                    <div class="banner-title">
+                        Vous avez été invité à<br />
+                        rejoindre <span>{{TEAM_NAME}}</span>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="body">
+                    <p class="greeting">
+                        Bonjour <strong>{{INVITEE_NAME}}</strong>,<br /><br />
+                        <strong>{{INVITER_NAME}}</strong> vous invite à
+                        rejoindre son équipe sur la plateforme. Collaborez
+                        ensemble sur des projets, gérez vos tâches et avancez en
+                        équipe.
+                    </p>
+
+                    <!-- Team block -->
+                    <div class="team-block">
+                        <div class="team-avatar">✦</div>
+                        <div class="team-info">
+                            <div class="team-label">Équipe</div>
+                            <div class="team-name">{{TEAM_NAME}}</div>
+                            <div class="invited-by">
+                                Invité par <strong>{{INVITER_NAME}}</strong> ·
+                                {{INVITER_EMAIL}}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="divider" />
+
+                    <p class="note">
+                        Connectez-vous à la plateforme pour accepter ou refuser
+                        cette invitation. Si vous n'êtes pas à l'origine de
+                        cette demande, vous pouvez ignorer cet email.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                © 2026 ProjectApp · <a href="#">Se désabonner</a> ·
+                <a href="#">Politique de confidentialité</a>
+                <br />
+                Vous recevez cet email car <strong>{{INVITEE_EMAIL}}</strong> a
+                été invité sur la plateforme.
+            </div>
+        </div>
+    </body>
+</html>
