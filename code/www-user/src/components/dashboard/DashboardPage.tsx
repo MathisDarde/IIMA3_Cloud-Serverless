@@ -81,7 +81,7 @@ export function DashboardPage({ token, onLogout, onUnauthorized, highlightedInvi
 
   const scrollTo = (section: Section) => {
     setActiveSection(section);
-    refs[section].current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sectionRefs[section].current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const sidebarItems: { id: Section; icon: React.ReactNode; label: string }[] = [
