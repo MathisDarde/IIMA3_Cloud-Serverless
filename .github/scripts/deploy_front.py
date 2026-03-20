@@ -31,7 +31,6 @@ with open(f"{home_env}/deploy.{env}.json", "r") as config_file:
 try:
     import dotenv
     dotenv.load_dotenv(f"{home_repo}/.env")
-    dotenv.load_dotenv(f"{home_env}/.env.{env}.deploy", override=True)
     print("Loaded .env file")
 except:
     print("No .env file found")
@@ -41,7 +40,7 @@ DISTRIBUTION_KEY = "DISTRIBUTION_USER" if folder == "www-user" else "DISTRIBUTIO
 
 
 def build_react(path):
-    api_url = os.getenv("API_URL_STG") if env == "stg" else os.getenv("API_URL_PRD")
+    api_url = config.get("API_URL") or os.getenv("API_URL_STG") if env == "stg" else config.get("API_URL") or os.getenv("API_URL_PRD")
     build_env = {**os.environ, "VITE_BASE_API_URL": api_url or ""}
     subprocess.run(["npm", "install", "--legacy-peer-deps"], cwd=path, check=True)
     subprocess.run(["npm", "run", "build"], cwd=path, check=True, env=build_env)
@@ -105,7 +104,7 @@ def invalidate_cache(distribution_id):
 
 
 try:
-    bucket = os.getenv("S3_BUCKET_STG") if env == "stg" else os.getenv("S3_BUCKET_PRD")
+    bucket = config["S3_BUCKET"]
     build_react(project_path)
     clear_s3(bucket, FOLDER_KEY)
     upload_to_s3(bucket, f"{project_path}/dist", FOLDER_KEY)
