@@ -4,6 +4,7 @@ import json
 import boto3
 import subprocess
 import zipfile
+from botocore.exceptions import ClientError
 
 ENVS = ["stg", "prd"]
 
@@ -103,33 +104,39 @@ def ensure_hourly_schedule(function_name):
         region_name=region,
     )
 
-    rule = events_client.put_rule(
-        Name=rule_name,
-        ScheduleExpression="rate(1 hour)",
-        State="ENABLED",
-        Description="Run DB backup lambda every hour",
-    )
-    rule_arn = rule["RuleArn"]
-
-    function_arn = lambda_client.get_function(FunctionName=function_name)["Configuration"]["FunctionArn"]
-    events_client.put_targets(
-        Rule=rule_name,
-        Targets=[{"Id": target_id, "Arn": function_arn}],
-    )
-
-    statement_id = f"AllowEventBridgeInvoke-{rule_name}"[:100]
     try:
-        lambda_client.add_permission(
-            FunctionName=function_name,
-            StatementId=statement_id,
-            Action="lambda:InvokeFunction",
-            Principal="events.amazonaws.com",
-            SourceArn=rule_arn,
+        rule = events_client.put_rule(
+            Name=rule_name,
+            ScheduleExpression="rate(1 hour)",
+            State="ENABLED",
+            Description="Run DB backup lambda every hour",
         )
-    except lambda_client.exceptions.ResourceConflictException:
-        print("Invoke permission already exists")
+        rule_arn = rule["RuleArn"]
 
-    print(f"Hourly schedule configured: {rule_name}")
+        function_arn = lambda_client.get_function(FunctionName=function_name)["Configuration"]["FunctionArn"]
+        events_client.put_targets(
+            Rule=rule_name,
+            Targets=[{"Id": target_id, "Arn": function_arn}],
+        )
+
+        statement_id = f"AllowEventBridgeInvoke-{rule_name}"[:100]
+        try:
+            lambda_client.add_permission(
+                FunctionName=function_name,
+                StatementId=statement_id,
+                Action="lambda:InvokeFunction",
+                Principal="events.amazonaws.com",
+                SourceArn=rule_arn,
+            )
+        except lambda_client.exceptions.ResourceConflictException:
+            print("Invoke permission already exists")
+
+        print(f"Hourly schedule configured: {rule_name}")
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "AccessDeniedException":
+            print(f"Warning: insufficient permissions for EventBridge setup — skipping schedule configuration")
+            return
+        raise
 
 
 try:

@@ -60,8 +60,7 @@ export function ProjectsSection({ token, teamId, teamRole, members, onUnauthoriz
     e.preventDefault();
     setCreateBusy(true);
     try {
-      const data = await api.projects.create(token, {
-        team_id: teamId,
+      const data = await api.projects.create(token, teamId, {
         name: createForm.name,
         description: createForm.description || undefined,
       });
