@@ -1,13 +1,29 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from './assets/vite.svg'
-// import heroImg from './assets/hero.png'
-// import './App.css'
+import { useState } from "react";
+import { AuthPage } from "./components/auth/AuthPage";
+import AdminDashboard from "./components/dashboard/DashboardPage";
 
-import Dashboard from "./pages/Dashboard";
+const TOKEN_KEY = "admin.access_token";
 
-function App() {
-  return <Dashboard />;
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
-export default App;
+export default function App() {
+  const [token, setToken] = useState(getStoredToken);
+
+  const handleLogin = (accessToken: string) => {
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    setToken(accessToken);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken("");
+  };
+
+  if (!token) {
+    return <AuthPage onLogin={handleLogin} />;
+  }
+
+  return <AdminDashboard token={token} onLogout={handleLogout} />;
+}
