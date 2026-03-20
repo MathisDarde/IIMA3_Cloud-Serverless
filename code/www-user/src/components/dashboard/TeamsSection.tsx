@@ -59,6 +59,7 @@ export function TeamsSection({
     setMembers([]);
     setInviteEmail("");
     setInviteFeedback("");
+    loadMembers(team);
   };
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -246,6 +247,7 @@ export function TeamsSection({
               token={token}
               teamId={selectedTeam.id}
               teamRole={selectedTeam.role}
+              members={members}
               onUnauthorized={onUnauthorized}
             />
           )}

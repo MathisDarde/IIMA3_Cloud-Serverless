@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import type { Project } from "../../types";
+import { TasksSection } from "./TasksSection";
+import type { Project, TeamMember } from "../../types";
 
 type Props = {
   token: string;
   teamId: number;
   teamRole: string;
+  members: TeamMember[];
   onUnauthorized: () => void;
 };
 
@@ -19,7 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
   archived: "bg-gray-100 text-gray-500",
 };
 
-export function ProjectsSection({ token, teamId, teamRole, onUnauthorized }: Props) {
+export function ProjectsSection({ token, teamId, teamRole, members, onUnauthorized }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selected, setSelected] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,6 +247,12 @@ export function ProjectsSection({ token, teamId, teamRole, onUnauthorized }: Pro
                   )}
                 </div>
               </div>
+              <TasksSection
+                token={token}
+                projectId={selected.id}
+                members={members}
+                onUnauthorized={onUnauthorized}
+              />
             </>
           ) : (
             <form onSubmit={handleUpdate} className="space-y-3">
