@@ -4,7 +4,8 @@
 // import heroImg from './assets/hero.png'
 // import './App.css'
 
-import Dashboard from "./pages/Dashboard";
+
+import Dashboard from "./components/dashboard/DashboardPage";
 
 function App() {
   return <Dashboard />;
