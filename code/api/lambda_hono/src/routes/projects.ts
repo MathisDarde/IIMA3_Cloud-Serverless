@@ -6,30 +6,6 @@ type CognitoAttr = { Name?: string; Value?: string };
 
 const projects = new Hono();
 
-let projectsSchemaReady = false;
-
-async function ensureProjectsSchema() {
-  if (projectsSchemaReady) return;
-
-  await db.query(
-    `CREATE TABLE IF NOT EXISTS projects (
-      id SERIAL PRIMARY KEY,
-      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      status VARCHAR(50) NOT NULL DEFAULT 'active',
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    )`,
-  );
-
-  await db.query(
-    "CREATE INDEX IF NOT EXISTS idx_projects_team_id ON projects(team_id)",
-  );
-
-  projectsSchemaReady = true;
-}
-
 function getAccessTokenFromHeader(authorizationHeader: string | undefined) {
   if (!authorizationHeader?.startsWith("Bearer ")) return null;
   return authorizationHeader.slice("Bearer ".length).trim();
@@ -78,7 +54,6 @@ async function requireCurrentUserId(c: any) {
   }
 
   try {
-    await ensureProjectsSchema();
     const userId = await resolveCurrentUserId(accessToken);
     return { error: null, userId };
   } catch (error) {
@@ -110,70 +85,12 @@ async function requireTeamMembership(
   return (result.rowCount ?? 0) > 0;
 }
 
-// POST /projects — create a project
-projects.post("/", async (c) => {
+// GET /projects/:projectId
+projects.get("/:projectId", async (c) => {
   const { error, userId } = await requireCurrentUserId(c);
   if (error || !userId) return error;
 
-  const { team_id, name, description } = await c.req.json();
-  const teamId = Number(team_id);
-
-  if (!Number.isFinite(teamId)) {
-    return c.json({ error: "team_id is required" }, 400);
-  }
-
-  const normalizedName = String(name ?? "").trim();
-  if (!normalizedName) {
-    return c.json({ error: "Project name is required" }, 400);
-  }
-
-  const isMember = await requireTeamMembership(userId, teamId);
-  if (!isMember) {
-    return c.json({ error: "Forbidden: you are not a member of this team" }, 403);
-  }
-
-  const result = await db.query(
-    `INSERT INTO projects (team_id, name, description)
-     VALUES ($1, $2, $3)
-     RETURNING id, team_id, name, description, status, created_at, updated_at`,
-    [teamId, normalizedName, description ?? null],
-  );
-
-  return c.json({ project: result.rows[0] }, 201);
-});
-
-// GET /projects?team_id=X — list projects for a team
-projects.get("/", async (c) => {
-  const { error, userId } = await requireCurrentUserId(c);
-  if (error || !userId) return error;
-
-  const teamId = Number(c.req.query("team_id"));
-  if (!Number.isFinite(teamId)) {
-    return c.json({ error: "team_id query param is required" }, 400);
-  }
-
-  const isMember = await requireTeamMembership(userId, teamId);
-  if (!isMember) {
-    return c.json({ error: "Forbidden: you are not a member of this team" }, 403);
-  }
-
-  const result = await db.query(
-    `SELECT id, team_id, name, description, status, created_at, updated_at
-     FROM projects
-     WHERE team_id = $1
-     ORDER BY created_at DESC`,
-    [teamId],
-  );
-
-  return c.json({ projects: result.rows });
-});
-
-// GET /projects/:id — get a project
-projects.get("/:id", async (c) => {
-  const { error, userId } = await requireCurrentUserId(c);
-  if (error || !userId) return error;
-
-  const projectId = Number(c.req.param("id"));
+  const projectId = Number(c.req.param("projectId"));
   if (!Number.isFinite(projectId)) {
     return c.json({ error: "Invalid project id" }, 400);
   }
@@ -197,12 +114,12 @@ projects.get("/:id", async (c) => {
   return c.json({ project });
 });
 
-// PATCH /projects/:id — update a project
-projects.patch("/:id", async (c) => {
+// PATCH /projects/:projectId
+projects.patch("/:projectId", async (c) => {
   const { error, userId } = await requireCurrentUserId(c);
   if (error || !userId) return error;
 
-  const projectId = Number(c.req.param("id"));
+  const projectId = Number(c.req.param("projectId"));
   if (!Number.isFinite(projectId)) {
     return c.json({ error: "Invalid project id" }, 400);
   }
@@ -243,12 +160,12 @@ projects.patch("/:id", async (c) => {
   return c.json({ project: result.rows[0] });
 });
 
-// DELETE /projects/:id — delete a project
-projects.delete("/:id", async (c) => {
+// DELETE /projects/:projectId
+projects.delete("/:projectId", async (c) => {
   const { error, userId } = await requireCurrentUserId(c);
   if (error || !userId) return error;
 
-  const projectId = Number(c.req.param("id"));
+  const projectId = Number(c.req.param("projectId"));
   if (!Number.isFinite(projectId)) {
     return c.json({ error: "Invalid project id" }, 400);
   }
