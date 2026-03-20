@@ -363,7 +363,7 @@ teams.post("/:teamId/invitations", async (c) => {
         toEmail: inviteeEmail,
         teamName,
         inviterName: currentUser.email,
-        invitationId: invitation.rows[0].id,
+        inviterEmail: currentUser.email,
       });
     } catch (mailError) {
       console.error("Failed to send invitation email", mailError);

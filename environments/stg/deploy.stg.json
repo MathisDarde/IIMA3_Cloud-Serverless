@@ -7,6 +7,7 @@
   "S3_BUCKET": "iimcloudserverless-stg-frontend",
   "S3_BUCKET_ASSETS": "iimcloudserverless-assets",
   "LAMBDA_FUNCTION": "iim-cloud-backend-stg",
+  "LAMBDA_CRON": "iim-cloud-cron-backup-stg",
   "API_URL": "https://ae9mtxvnx5.execute-api.eu-west-3.amazonaws.com",
   "SES_FROM_EMAIL": "emilie.xu@edu.devinci.fr",
   "AWS_REGION": "eu-west-3",

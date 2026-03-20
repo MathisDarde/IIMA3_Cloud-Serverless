@@ -161,6 +161,11 @@ export const handler: ScheduledHandler = async () => {
     }),
   );
 
+  await db.query(
+    `INSERT INTO backups (s3_key, size_bytes, status) VALUES ($1, $2, 'success')`,
+    [key, payload.byteLength],
+  );
+
   console.log(
     JSON.stringify({
       message: "Database backup uploaded to S3",

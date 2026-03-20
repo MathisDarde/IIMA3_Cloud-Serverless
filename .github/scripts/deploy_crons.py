@@ -22,12 +22,12 @@ with open(f"{home_env}/deploy.{env}.json", "r") as config_file:
 
 try:
     import dotenv
-    dotenv.load_dotenv(f"{home_env}/.env.{env}.deploy")
+    dotenv.load_dotenv(f"{home_repo}/.env")
     print("Loaded .env file")
 except:
     print("No .env file found")
 
-function_name = os.getenv("LAMBDA_CRON_STG" if env == "stg" else "LAMBDA_CRON_PRD")
+function_name = config.get("LAMBDA_CRON") or os.getenv("LAMBDA_CRON_STG" if env == "stg" else "LAMBDA_CRON_PRD")
 rule_name = f"{function_name}-hourly-backup"
 target_id = "db-hourly-backup"
 handler_name = "dist/index.handler"
@@ -83,7 +83,6 @@ def deploy_lambda(function_name, zip_path):
             "DB_SSL": "true",
             "S3_BACKUP_BUCKET": os.getenv("S3_BUCKET_BACKUP") or config.get("S3_BACKUP_BUCKET") or os.getenv("S3_BUCKET_ASSETS"),
             "S3_BACKUP_PREFIX": os.getenv("S3_BACKUP_PREFIX") or "database/hourly",
-            "AWS_REGION": config.get("AWS_REGION", "eu-west-3"),
         }.items() if v}},
     )
     print(f"Function configuration updated (handler={handler_name})")
