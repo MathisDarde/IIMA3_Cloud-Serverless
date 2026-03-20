@@ -1,6 +1,7 @@
 import "./env";
 import { Hono } from "hono";
 import { handle } from "hono/aws-lambda";
+import { cors } from "hono/cors";
 import users from "./routes/users";
 import auth from "./routes/auth";
 import teams from "./routes/teams";
@@ -12,6 +13,17 @@ app.onError((error, c) => {
   console.error(error);
   return c.json({ error: "Internal server error" }, 500);
 });
+
+app.use(
+  "*",
+  cors({
+    origin: () => {
+      return "*";
+    },
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  }),
+);
 
 app.get("/", (c) => c.json({ message: "API is running" }));
 app.route("/users", users);
