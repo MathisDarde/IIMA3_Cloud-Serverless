@@ -123,3 +123,5 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD_STG }}
           DB_NAME: ${{ secrets.DB_NAME_STG }}
           S3_BUCKET_ASSETS: ${{ secrets.S3_BUCKET_ASSETS }}
+          S3_BUCKET_BACKUP: ${{ secrets.S3_BUCKET_BACKUP_STG }}
+          S3_BACKUP_PREFIX: ${{ secrets.S3_BACKUP_PREFIX }}

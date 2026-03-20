@@ -28,6 +28,8 @@ except:
     print("No .env file found")
 
 function_name = os.getenv("LAMBDA_CRON_STG" if env == "stg" else "LAMBDA_CRON_PRD")
+rule_name = f"{function_name}-hourly-backup"
+target_id = "db-hourly-backup"
 
 
 def build(path):
@@ -52,7 +54,7 @@ def deploy_lambda(function_name, zip_path):
         "lambda",
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION", "eu-west-3"),
+        region_name=config.get("AWS_REGION", "eu-west-3"),
     )
     with open(zip_path, "rb") as f:
         client.update_function_code(FunctionName=function_name, ZipFile=f.read())
@@ -68,10 +70,56 @@ def deploy_lambda(function_name, zip_path):
             "DB_PASSWORD": os.getenv("DB_PASSWORD"),
             "DB_NAME": os.getenv("DB_NAME"),
             "DB_SSL": "true",
-            "S3_BUCKET_ASSETS": os.getenv("S3_BUCKET_ASSETS"),
+            "S3_BACKUP_BUCKET": os.getenv("S3_BUCKET_BACKUP") or config.get("S3_BACKUP_BUCKET") or os.getenv("S3_BUCKET_ASSETS"),
+            "S3_BACKUP_PREFIX": os.getenv("S3_BACKUP_PREFIX") or "database/hourly",
+            "AWS_REGION": config.get("AWS_REGION", "eu-west-3"),
         }.items() if v}},
     )
     print("Function configuration updated")
+
+
+def ensure_hourly_schedule(function_name):
+    region = config.get("AWS_REGION", "eu-west-3")
+    events_client = boto3.client(
+        "events",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=region,
+    )
+    lambda_client = boto3.client(
+        "lambda",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=region,
+    )
+
+    rule = events_client.put_rule(
+        Name=rule_name,
+        ScheduleExpression="rate(1 hour)",
+        State="ENABLED",
+        Description="Run DB backup lambda every hour",
+    )
+    rule_arn = rule["RuleArn"]
+
+    function_arn = lambda_client.get_function(FunctionName=function_name)["Configuration"]["FunctionArn"]
+    events_client.put_targets(
+        Rule=rule_name,
+        Targets=[{"Id": target_id, "Arn": function_arn}],
+    )
+
+    statement_id = f"AllowEventBridgeInvoke-{rule_name}"[:100]
+    try:
+        lambda_client.add_permission(
+            FunctionName=function_name,
+            StatementId=statement_id,
+            Action="lambda:InvokeFunction",
+            Principal="events.amazonaws.com",
+            SourceArn=rule_arn,
+        )
+    except lambda_client.exceptions.ResourceConflictException:
+        print("Invoke permission already exists")
+
+    print(f"Hourly schedule configured: {rule_name}")
 
 
 try:
@@ -79,6 +127,7 @@ try:
     build(project_path)
     make_zip(project_path, zip_path)
     deploy_lambda(function_name, zip_path)
+    ensure_hourly_schedule(function_name)
     print("Deploy complete!")
 except Exception as e:
     print(f"Deploy failed: {e}")
