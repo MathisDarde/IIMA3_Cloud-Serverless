@@ -50,19 +50,34 @@ users.post("/", async (c) => {
     return c.json({ error: "Email and password are required" }, 400);
   }
 
-  const cognitoSub = await register(email, password, {
-    given_name: first_name,
-    family_name: last_name,
-  });
+  try {
+    const cognitoSub = await register(email, password, {
+      given_name: first_name,
+      family_name: last_name,
+    });
 
-  const result = await db.query(
-    `INSERT INTO users (cognito_sub, role)
-     VALUES ($1, $2)
-     RETURNING id, cognito_sub, role, created_at`,
-    [cognitoSub, role ?? "user"],
-  );
+    const result = await db.query(
+      `INSERT INTO users (cognito_sub, role)
+       VALUES ($1, $2)
+       ON CONFLICT (cognito_sub) DO NOTHING
+       RETURNING id, cognito_sub, role, created_at`,
+      [cognitoSub, role ?? "user"],
+    );
 
-  return c.json({ user: result.rows[0] }, 201);
+    return c.json({ user: result.rows[0] }, 201);
+  } catch (error: any) {
+    if (error?.name === "UsernameExistsException") {
+      return c.json({ error: "Email already used" }, 409);
+    }
+    if (error?.name === "InvalidPasswordException") {
+      return c.json({ error: "Password does not meet policy requirements" }, 400);
+    }
+    if (error?.name === "InvalidParameterException") {
+      return c.json({ error: error.message ?? "Invalid parameters" }, 400);
+    }
+    console.error("POST /users failed", { name: error?.name, message: error?.message });
+    return c.json({ error: "Failed to create user" }, 500);
+  }
 });
 
 export default users;
