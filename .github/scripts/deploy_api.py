@@ -61,6 +61,7 @@ def deploy_lambda(function_name, zip_path):
     print(f"Function code updated: {function_name}")
     client.update_function_configuration(
         FunctionName=function_name,
+        Handler="dist/index.handler",
         Environment={"Variables": {k: v for k, v in {
             "DB_HOST": os.getenv("DB_HOST"),
             "DB_PORT": config.get("DB_PORT", "5432"),
